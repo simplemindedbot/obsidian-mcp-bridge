@@ -1,4 +1,7 @@
 import { MCPBridgeSettings, MCPServerConfig, MCPResponse } from '@/types/settings';
+import { ChildProcess } from 'child_process';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 export class MCPClient {
   private settings: MCPBridgeSettings;
@@ -101,8 +104,10 @@ export class MCPClient {
 class MCPConnection {
   private serverId: string;
   private config: MCPServerConfig;
-  private process?: any; // Node.js child process for stdio
+  private process?: ChildProcess; // Node.js child process for stdio
   private websocket?: WebSocket; // For websocket connections
+  private client?: Client; // MCP SDK client
+  private transport?: StdioClientTransport; // MCP transport
   private isConnected = false;
 
   constructor(serverId: string, config: MCPServerConfig) {
@@ -133,6 +138,24 @@ class MCPConnection {
   async disconnect(): Promise<void> {
     if (!this.isConnected) return;
 
+    if (this.client) {
+      try {
+        await this.client.close();
+      } catch (error) {
+        console.error(`Error closing MCP client for ${this.serverId}:`, error);
+      }
+      this.client = undefined;
+    }
+
+    if (this.transport) {
+      try {
+        await this.transport.close();
+      } catch (error) {
+        console.error(`Error closing MCP transport for ${this.serverId}:`, error);
+      }
+      this.transport = undefined;
+    }
+
     if (this.process) {
       this.process.kill();
       this.process = undefined;
@@ -147,44 +170,122 @@ class MCPConnection {
   }
 
   async callTool(toolName: string, parameters?: any): Promise<MCPResponse> {
-    if (!this.isConnected) {
+    if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
 
-    // TODO: Implement actual MCP protocol tool call
-    // This is a placeholder implementation
-    return {
-      id: Math.random().toString(36),
-      result: {
-        content: `Tool ${toolName} called with parameters: ${JSON.stringify(parameters)}`
+    try {
+      // List available tools first to validate the tool exists
+      const tools = await this.client.listTools();
+      const tool = tools.tools.find(t => t.name === toolName);
+      
+      if (!tool) {
+        throw new Error(`Tool '${toolName}' not found on server '${this.serverId}'`);
       }
-    };
+
+      // Call the tool with the MCP client
+      const result = await this.client.callTool({
+        name: toolName,
+        arguments: parameters || {}
+      });
+
+      return {
+        id: Math.random().toString(36),
+        result: {
+          content: result.content || [],
+          isError: result.isError || false
+        }
+      };
+    } catch (error) {
+      console.error(`Error calling tool ${toolName} on server ${this.serverId}:`, error);
+      throw error;
+    }
   }
 
   async getResources(): Promise<any[]> {
-    if (!this.isConnected) {
+    if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
 
-    // TODO: Implement actual MCP protocol resource listing
-    return [];
+    try {
+      // List available resources using the MCP client
+      const resources = await this.client.listResources();
+      return resources.resources || [];
+    } catch (error) {
+      console.error(`Error listing resources on server ${this.serverId}:`, error);
+      throw error;
+    }
   }
 
   async search(query: string): Promise<any[]> {
-    if (!this.isConnected) {
+    if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
 
-    // TODO: Implement actual search functionality
-    return [];
+    try {
+      // First, try to find a search tool
+      const tools = await this.client.listTools();
+      const searchTool = tools.tools.find(t => 
+        t.name.toLowerCase().includes('search') || 
+        t.name.toLowerCase().includes('find') ||
+        t.name.toLowerCase().includes('query')
+      );
+
+      if (searchTool) {
+        // Use the search tool if available
+        const result = await this.client.callTool({
+          name: searchTool.name,
+          arguments: { query }
+        });
+        return Array.isArray(result.content) ? result.content : [result.content];
+      }
+
+      // Fallback: search through resources
+      const resources = await this.getResources();
+      return resources.filter(resource => 
+        resource.name?.toLowerCase().includes(query.toLowerCase()) ||
+        resource.description?.toLowerCase().includes(query.toLowerCase())
+      );
+    } catch (error) {
+      console.error(`Error searching on server ${this.serverId}:`, error);
+      return [];
+    }
   }
 
   private async connectStdio(): Promise<void> {
-    // TODO: Implement stdio connection using Node.js child_process
-    console.log(`Connecting via stdio: ${this.config.command} ${this.config.args.join(' ')}`);
+    if (!this.config.command) {
+      throw new Error('Command is required for stdio connection');
+    }
+
+    console.log(`Connecting via stdio: ${this.config.command} ${this.config.args?.join(' ') || ''}`);
     
-    // Placeholder - actual implementation would use child_process.spawn
-    // and handle MCP protocol over stdin/stdout
+    try {
+      // Create MCP transport - this handles process spawning internally
+      this.transport = new StdioClientTransport({
+        command: this.config.command,
+        args: this.config.args || [],
+        env: this.config.env || {}
+      });
+
+      // Create MCP client
+      this.client = new Client({
+        name: 'obsidian-mcp-bridge',
+        version: '0.1.0'
+      }, {
+        capabilities: {
+          tools: {},
+          resources: {}
+        }
+      });
+
+      // Connect to the MCP server
+      await this.client.connect(this.transport);
+      console.log(`Successfully connected to MCP server: ${this.serverId}`);
+    } catch (error) {
+      console.error(`Failed to connect to MCP server ${this.serverId}:`, error);
+      await this.disconnect();
+      throw error;
+    }
   }
 
   private async connectWebSocket(): Promise<void> {
@@ -194,8 +295,50 @@ class MCPConnection {
 
     console.log(`Connecting via WebSocket: ${this.config.url}`);
     
-    // TODO: Implement WebSocket connection with MCP protocol
-    // this.websocket = new WebSocket(this.config.url);
+    try {
+      // Create WebSocket connection
+      this.websocket = new WebSocket(this.config.url);
+      
+      // Wait for connection to open
+      await new Promise<void>((resolve, reject) => {
+        this.websocket!.onopen = () => {
+          console.log(`WebSocket connected to ${this.serverId}`);
+          resolve();
+        };
+        
+        this.websocket!.onerror = (error) => {
+          console.error(`WebSocket error for ${this.serverId}:`, error);
+          reject(new Error(`WebSocket connection failed: ${error}`));
+        };
+        
+        this.websocket!.onclose = () => {
+          console.log(`WebSocket disconnected from ${this.serverId}`);
+          this.isConnected = false;
+        };
+      });
+
+      // Create MCP client with WebSocket transport
+      this.client = new Client({
+        name: 'obsidian-mcp-bridge',
+        version: '0.1.0'
+      }, {
+        capabilities: {
+          tools: {},
+          resources: {}
+        }
+      });
+
+      // Note: WebSocket transport would need to be implemented
+      // For now, throw an error to indicate this needs more work
+      throw new Error('WebSocket transport not yet implemented - use stdio for now');
+    } catch (error) {
+      console.error(`Failed to connect via WebSocket to ${this.serverId}:`, error);
+      if (this.websocket) {
+        this.websocket.close();
+        this.websocket = undefined;
+      }
+      throw error;
+    }
   }
 
   private async connectSSE(): Promise<void> {
@@ -205,6 +348,24 @@ class MCPConnection {
 
     console.log(`Connecting via SSE: ${this.config.url}`);
     
-    // TODO: Implement Server-Sent Events connection
+    try {
+      // Create MCP client for SSE
+      this.client = new Client({
+        name: 'obsidian-mcp-bridge',
+        version: '0.1.0'
+      }, {
+        capabilities: {
+          tools: {},
+          resources: {}
+        }
+      });
+
+      // Note: SSE transport would need to be implemented
+      // For now, throw an error to indicate this needs more work
+      throw new Error('SSE transport not yet implemented - use stdio for now');
+    } catch (error) {
+      console.error(`Failed to connect via SSE to ${this.serverId}:`, error);
+      throw error;
+    }
   }
 }
