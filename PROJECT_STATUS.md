@@ -82,7 +82,7 @@ obsidian-mcp-bridge/
 4. **Implement MCP protocol**: Begin with STDIO connection handling
 
 ### Short Term (Phase 1 - MVP)
-1. **Complete MCP Client implementation** with real protocol support
+1. **Complete MCP Client implementation** with real protocol support (using MCP-SuperAssistant patterns)
 2. **Implement natural language processing** for query routing
 3. **Add basic knowledge discovery** across vault and MCP servers
 4. **Enhance UI components** with better formatting and interactions
@@ -149,6 +149,21 @@ The foundation is solid and ready for implementation. The architecture follows O
 
 ---
 
+## 🙏 Reference Implementation
+
+This project uses **[MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant)** as a reference implementation for MCP client architecture. The SuperAssistant project (located at `../MCP-SuperAssistant`) provides excellent patterns for:
+
+- **Multi-transport MCP connections** (stdio, WebSocket, SSE)
+- **Plugin-based architecture** for different connection types
+- **Event-driven MCP client implementation** with proper lifecycle management
+- **Health monitoring and connection management**
+- **Tool calling and resource management**
+
+The architectural patterns from SuperAssistant have been adapted for Obsidian's plugin system.
+
+---
+
 **Repository**: `/Users/scotcampbell/GitHub/obsidian-mcp-bridge`
 **Status**: ✅ Ready for development
+**Reference**: `/Users/scotcampbell/GitHub/MCP-SuperAssistant`
 **Next Command**: `cd /Users/scotcampbell/GitHub/obsidian-mcp-bridge && npm install`

@@ -33,7 +33,7 @@ This is an Obsidian plugin that bridges the Model Context Protocol (MCP) with Ob
 - Handles connections to multiple MCP servers
 - Supports stdio, WebSocket, and SSE connection types
 - Manages server lifecycle and cross-server searches
-- Note: Protocol implementation is currently placeholder/TODO
+- Implementation based on MCP-SuperAssistant reference architecture
 
 **Knowledge Engine** (`src/knowledge/knowledge-engine.ts`):
 - Analyzes content and discovers related information
@@ -65,6 +65,14 @@ This is an Obsidian plugin that bridges the Model Context Protocol (MCP) with Ob
 
 - Plugin follows Obsidian's standard plugin architecture
 - Uses esbuild for bundling (config in `esbuild.config.mjs`)
-- MCP protocol implementation is currently scaffolded (many TODOs)
+- MCP protocol implementation based on MCP-SuperAssistant reference
 - Settings stored in Obsidian's plugin data system
 - Error handling includes user notices for connection failures
+
+### Reference Implementation
+
+This project uses https://github.com/srbhptl39/MCP-SuperAssistant as a reference implementation for MCP client architecture. The SuperAssistant project provides excellent patterns for:
+- Multi-transport MCP connections (stdio, WebSocket, SSE)
+- Plugin-based architecture for different connection types
+- Event-driven MCP client implementation
+- Health monitoring and connection management

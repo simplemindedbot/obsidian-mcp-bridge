@@ -180,7 +180,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) - The underlying protocol
 - [MCP Servers](https://github.com/modelcontextprotocol/servers) - Official MCP server implementations
+- [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) - Reference implementation for MCP client architecture
 - [Obsidian](https://obsidian.md/) - The knowledge management platform
+
+## 🙏 Acknowledgments
+
+This project is built with inspiration and reference from:
+
+- **[MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant)** by [@srbhptl39](https://github.com/srbhptl39) - An excellent Chrome extension that demonstrates production-ready MCP client implementation patterns. We've used their architectural patterns for multi-transport connections, plugin-based design, and event-driven MCP client management.
+
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** by Anthropic - The foundational protocol that enables AI assistants to connect to data sources
+
+- **[Obsidian](https://obsidian.md/)** - The powerful knowledge management platform this plugin extends
 
 ---
 

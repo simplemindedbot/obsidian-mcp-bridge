@@ -145,12 +145,13 @@ User Input → BridgeInterface → MCPClient/KnowledgeEngine → MCP Servers →
 
 ### 1. MCP Protocol Implementation
 
-The current MCP client is a stub. Priority areas:
+The MCP client implementation is based on patterns from [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant). Priority areas:
 
-- **STDIO connection handling** using Node.js `child_process`
-- **JSON-RPC message formatting** according to MCP specification
-- **WebSocket support** for remote servers
-- **Error handling and reconnection logic**
+- **STDIO connection handling** using MCP SDK StdioClientTransport
+- **Multi-transport support** (stdio, WebSocket, SSE) following SuperAssistant patterns
+- **Plugin-based architecture** for different connection types
+- **Event-driven client management** with proper lifecycle handling
+- **Health monitoring and reconnection logic**
 
 Example MCP message structure:
 ```typescript
@@ -319,7 +320,25 @@ We welcome contributions! Priority areas:
 - [Obsidian Plugin API](https://github.com/obsidianmd/obsidian-api)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [MCP Server Examples](https://github.com/modelcontextprotocol/servers)
+- [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) - Reference implementation for MCP client patterns
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+
+## Reference Implementation
+
+This project uses **[MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant)** as a reference implementation for MCP client architecture. The SuperAssistant project provides excellent patterns for:
+
+- **Plugin-based transport system** with support for stdio, WebSocket, and SSE connections
+- **Event-driven MCP client** with proper lifecycle management
+- **Health monitoring** and automatic reconnection handling
+- **Tool calling and resource management** with caching and error handling
+- **Modular architecture** that can be adapted for different environments
+
+Key files to reference from MCP-SuperAssistant:
+- `chrome-extension/src/mcpclient/core/McpClient.ts` - Main client implementation
+- `chrome-extension/src/mcpclient/plugins/` - Transport plugin implementations
+- `chrome-extension/src/mcpclient/types/` - Type definitions and interfaces
+
+The architectural patterns from SuperAssistant have been adapted for Obsidian's plugin system while maintaining the core MCP client functionality.
 
 ## Getting Help
 
