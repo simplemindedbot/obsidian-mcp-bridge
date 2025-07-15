@@ -3,6 +3,7 @@
 ## Current Todo List
 
 ### ✅ Completed
+
 - [x] Implement core MCP protocol stdio connection in mcp-client.ts
 - [x] Implement MCP protocol tool calling functionality
 - [x] Implement MCP protocol resource listing functionality
@@ -11,9 +12,11 @@
 - [x] Add basic utility functions for content processing
 
 ### 🔄 In Progress
+
 - [ ] Create unit tests for core components
 
 ### 📋 Remaining Tasks
+
 - [ ] Fix TypeScript errors in other components (bridge interface, main plugin, UI)
 - [ ] Enhance WebSocket and SSE transports (currently scaffolded)
 - [ ] Add comprehensive error handling and retry logic
@@ -36,6 +39,7 @@
 ## Reference Implementation
 
 Continue referencing `../MCP-SuperAssistant` for architectural patterns, especially:
+
 - Event-driven client management
 - Health monitoring implementations
 - Error handling strategies
