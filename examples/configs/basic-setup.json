@@ -1,0 +1,57 @@
+{
+  "name": "Basic MCP Bridge Configuration",
+  "description": "Example configuration for common MCP servers",
+  "servers": {
+    "filesystem": {
+      "name": "Local File System",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./Documents"],
+      "enabled": true,
+      "type": "stdio",
+      "timeout": 30000,
+      "retryAttempts": 3
+    },
+    "git": {
+      "name": "Git Repository",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "./my-project"],
+      "enabled": false,
+      "type": "stdio",
+      "timeout": 30000,
+      "retryAttempts": 3
+    },
+    "brave-search": {
+      "name": "Web Search (Brave)",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "enabled": false,
+      "type": "stdio",
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "env": {
+        "BRAVE_API_KEY": "your-brave-api-key-here"
+      }
+    },
+    "sqlite": {
+      "name": "SQLite Database",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "./database.db"],
+      "enabled": false,
+      "type": "stdio",
+      "timeout": 30000,
+      "retryAttempts": 3
+    }
+  },
+  "notes": {
+    "filesystem": "Provides access to local files and directories. Change the path argument to your desired directory.",
+    "git": "Provides Git repository information. Change the path to your Git repository.",
+    "brave-search": "Provides web search capabilities. Requires a Brave Search API key from https://brave.com/search/api/",
+    "sqlite": "Provides access to SQLite databases. Change the path to your database file."
+  },
+  "setup_instructions": [
+    "1. Copy this configuration to your MCP Bridge plugin settings",
+    "2. Enable the servers you want to use",
+    "3. Update file paths and API keys as needed",
+    "4. Save settings and restart the plugin if necessary"
+  ]
+}
