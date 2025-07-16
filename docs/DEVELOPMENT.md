@@ -4,7 +4,7 @@ This guide will help you get started with developing the Obsidian MCP Bridge plu
 
 ## Project Structure
 
-```
+``` txt
 obsidian-mcp-bridge/
 ├── src/
 │   ├── core/              # MCP protocol implementation
@@ -38,26 +38,31 @@ obsidian-mcp-bridge/
 ### Initial Setup
 
 1. **Clone and Install Dependencies**
+
    ```bash
    cd /Users/scotcampbell/GitHub/obsidian-mcp-bridge
    npm install
    ```
 
 2. **Development Build**
+
    ```bash
    npm run dev
    ```
+
    This will start the build process in watch mode, rebuilding when files change.
 
 3. **Link to Obsidian Vault**
-   
+
    Create a symbolic link to your Obsidian vault's plugins directory:
+
    ```bash
    # Replace with your vault path
    ln -s /Users/scotcampbell/GitHub/obsidian-mcp-bridge /path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge
    ```
 
    Or copy the files manually:
+
    ```bash
    cp main.js manifest.json styles.css /path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/
    ```
@@ -115,13 +120,14 @@ obsidian-mcp-bridge/
 
 ### Data Flow
 
-```
+``` txt
 User Input → BridgeInterface → MCPClient/KnowledgeEngine → MCP Servers → Response → UI Update
 ```
 
 ## Implementation Status
 
 ### ✅ Completed (Foundation)
+
 - Basic plugin structure
 - Settings management
 - TypeScript configuration
@@ -129,12 +135,14 @@ User Input → BridgeInterface → MCPClient/KnowledgeEngine → MCP Servers →
 - Core component architecture
 
 ### 🚧 In Progress (Phase 1)
+
 - MCP protocol implementation
 - Basic server connections
 - Natural language interface
 - Simple knowledge discovery
 
 ### ⏳ Planned (Phase 2+)
+
 - Cross-server search
 - Advanced knowledge synthesis
 - Content recommendations
@@ -154,6 +162,7 @@ The MCP client implementation is based on patterns from [MCP-SuperAssistant](htt
 - **Health monitoring and reconnection logic**
 
 Example MCP message structure:
+
 ```typescript
 interface MCPRequest {
   jsonrpc: "2.0";
@@ -334,6 +343,7 @@ This project uses **[MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperA
 - **Modular architecture** that can be adapted for different environments
 
 Key files to reference from MCP-SuperAssistant:
+
 - `chrome-extension/src/mcpclient/core/McpClient.ts` - Main client implementation
 - `chrome-extension/src/mcpclient/plugins/` - Transport plugin implementations
 - `chrome-extension/src/mcpclient/types/` - Type definitions and interfaces
