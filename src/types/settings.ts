@@ -35,6 +35,17 @@ export interface ContentProcessingSettings {
   insertionMode: 'cursor' | 'end' | 'modal';
 }
 
+export interface LoggingSettings {
+  enableFileLogging: boolean;
+  enableConsoleLogging: boolean;
+  logLevel: 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  logFilePath?: string;
+  maxLogFileSize: number;
+  maxLogFiles: number;
+  enablePerformanceLogging: boolean;
+  enableNetworkLogging: boolean;
+}
+
 export interface MCPBridgeSettings {
   // Server Configuration
   servers: Record<string, MCPServerConfig>;
@@ -49,6 +60,9 @@ export interface MCPBridgeSettings {
   
   // Content Processing
   contentProcessing: ContentProcessingSettings;
+  
+  // Logging Configuration
+  logging: LoggingSettings;
   
   // Advanced Settings
   enableDebugMode: boolean;
@@ -115,6 +129,16 @@ export const DEFAULT_SETTINGS: MCPBridgeSettings = {
     markdownConversion: true,
     preserveFormatting: true,
     insertionMode: 'cursor'
+  },
+  
+  logging: {
+    enableFileLogging: true,
+    enableConsoleLogging: true,
+    logLevel: 'info',
+    maxLogFileSize: 10 * 1024 * 1024, // 10MB
+    maxLogFiles: 5,
+    enablePerformanceLogging: false,
+    enableNetworkLogging: false
   },
   
   enableDebugMode: false,

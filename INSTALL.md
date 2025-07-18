@@ -231,6 +231,37 @@ npm install -g @modelcontextprotocol/server-postgres
    - Use the chat interface to get suggestions
    - Click "Insert" buttons to add content to your notes
 
+## 📋 Logging and Debugging
+
+The plugin includes comprehensive logging capabilities to help diagnose issues:
+
+### **Log Files**
+- **Location**: `.obsidian/plugins/obsidian-mcp-bridge/logs/`
+- **Format**: Structured logs with timestamps, components, and error details
+- **Rotation**: Automatic log rotation when files exceed size limits
+- **Retention**: Configurable number of historical log files
+
+### **Log Levels**
+- **Error**: Critical errors that prevent functionality
+- **Warning**: Non-critical issues that may affect performance
+- **Info**: General information about plugin operations
+- **Debug**: Detailed information for troubleshooting
+- **Trace**: Extremely detailed information for development
+
+### **Managing Logs**
+1. **View Logs**: Use the "View Logs" button in settings to create a note with current logs
+2. **Clear Logs**: Use the "Clear Logs" button to delete all log files
+3. **Configure Logging**: Adjust log levels and file sizes in "Logging & Debugging" settings
+
+### **Log File Analysis**
+Each log entry contains:
+- **Timestamp**: When the event occurred
+- **Level**: Severity of the message
+- **Component**: Which part of the plugin generated the log
+- **Message**: Description of the event
+- **Error Details**: Stack traces and error information (if applicable)
+- **Metadata**: Additional context information
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
@@ -275,15 +306,22 @@ npm install -g @modelcontextprotocol/server-postgres
 
 1. **Enable Debug Mode:**
    - Open plugin settings
-   - Turn on "Enable Debug Mode"
+   - Go to "Logging & Debugging" section
+   - Turn on "Enable File Logging"
+   - Set "Log Level" to "Debug" or "Trace"
    - Check browser console (Ctrl/Cmd + Shift + I)
 
-2. **Check Console for Errors:**
+2. **Check Log Files:**
+   - In plugin settings, go to "Logging & Debugging"
+   - Click "View Logs" to see detailed error information
+   - Log files are saved to: `.obsidian/plugins/obsidian-mcp-bridge/logs/`
+
+3. **Check Console for Errors:**
    - Open Developer Tools (Ctrl/Cmd + Shift + I)
    - Look for error messages in the Console tab
    - Copy error messages for troubleshooting
 
-3. **Reset Plugin Settings:**
+4. **Reset Plugin Settings:**
    - Go to plugin settings
    - Click "Reset to Defaults"
    - Reconfigure your servers

@@ -5,6 +5,7 @@ import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
 import { BridgeInterface } from '@/bridge/bridge-interface';
 import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
+import { initializeLogger, getLogger, LogLevel } from '@/utils/logger';
 
 export default class MCPBridgePlugin extends Plugin {
   settings!: MCPBridgeSettings;
@@ -18,10 +19,29 @@ export default class MCPBridgePlugin extends Plugin {
     // Load settings
     await this.loadSettings();
 
-    // Initialize core components
-    this.mcpClient = new MCPClient(this.settings);
-    this.knowledgeEngine = new KnowledgeEngine(this.app, this.mcpClient);
-    this.bridgeInterface = new BridgeInterface(this.app, this.mcpClient, this.knowledgeEngine);
+    // Initialize logger
+    const logger = initializeLogger(this.app);
+    logger.configure({
+      enableFileLogging: this.settings.logging.enableFileLogging,
+      enableConsoleLogging: this.settings.logging.enableConsoleLogging,
+      logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
+      logFilePath: this.settings.logging.logFilePath,
+      maxLogFileSize: this.settings.logging.maxLogFileSize
+    });
+
+    logger.info('Plugin', 'MCP Bridge plugin loading...');
+
+    try {
+      // Initialize core components
+      this.mcpClient = new MCPClient(this.settings);
+      this.knowledgeEngine = new KnowledgeEngine(this.app, this.mcpClient);
+      this.bridgeInterface = new BridgeInterface(this.app, this.mcpClient, this.knowledgeEngine);
+
+      logger.info('Plugin', 'Core components initialized successfully');
+    } catch (error) {
+      logger.error('Plugin', 'Failed to initialize core components', error);
+      throw error;
+    }
 
     // Register chat view
     this.registerView(
@@ -73,6 +93,9 @@ export default class MCPBridgePlugin extends Plugin {
   async onunload() {
     console.log('Unloading MCP Bridge plugin...');
     
+    const logger = getLogger();
+    logger.info('Plugin', 'MCP Bridge plugin unloading...');
+    
     // Cleanup connections
     if (this.mcpClient) {
       await this.mcpClient.disconnect();
@@ -80,6 +103,9 @@ export default class MCPBridgePlugin extends Plugin {
 
     // Detach views
     this.app.workspace.detachLeavesOfType(CHAT_VIEW_TYPE);
+    
+    // Cleanup logger
+    logger.destroy();
   }
 
   async loadSettings() {
@@ -89,9 +115,30 @@ export default class MCPBridgePlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
     
+    // Update logger configuration
+    const logger = getLogger();
+    logger.configure({
+      enableFileLogging: this.settings.logging.enableFileLogging,
+      enableConsoleLogging: this.settings.logging.enableConsoleLogging,
+      logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
+      logFilePath: this.settings.logging.logFilePath,
+      maxLogFileSize: this.settings.logging.maxLogFileSize
+    });
+    
     // Reinitialize connections if settings changed
     if (this.mcpClient) {
       await this.mcpClient.updateSettings(this.settings);
+    }
+  }
+
+  private logLevelToEnum(level: string): LogLevel {
+    switch (level) {
+      case 'error': return LogLevel.ERROR;
+      case 'warn': return LogLevel.WARN;
+      case 'info': return LogLevel.INFO;
+      case 'debug': return LogLevel.DEBUG;
+      case 'trace': return LogLevel.TRACE;
+      default: return LogLevel.INFO;
     }
   }
 

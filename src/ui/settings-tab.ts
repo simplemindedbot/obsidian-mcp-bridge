@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import MCPBridgePlugin from '@/main';
 import { MCPServerConfig } from '@/types/settings';
 
@@ -27,6 +27,9 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
 
     // Content Processing Section
     this.addContentProcessingSection();
+
+    // Logging Section
+    this.addLoggingSection();
 
     // Advanced Settings Section
     this.addAdvancedSection();
@@ -263,6 +266,103 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.contentProcessing.insertionMode = value as any;
             await this.plugin.saveSettings();
+          });
+      });
+  }
+
+  private addLoggingSection(): void {
+    const { containerEl } = this;
+
+    containerEl.createEl('h3', { text: 'Logging & Debugging' });
+
+    new Setting(containerEl)
+      .setName('Enable File Logging')
+      .setDesc('Save logs to a file for debugging purposes')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.logging.enableFileLogging)
+          .onChange(async (value) => {
+            this.plugin.settings.logging.enableFileLogging = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Enable Console Logging')
+      .setDesc('Show logs in the browser console')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.logging.enableConsoleLogging)
+          .onChange(async (value) => {
+            this.plugin.settings.logging.enableConsoleLogging = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Log Level')
+      .setDesc('Set the minimum level for logging')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('error', 'Error')
+          .addOption('warn', 'Warning')
+          .addOption('info', 'Info')
+          .addOption('debug', 'Debug')
+          .addOption('trace', 'Trace')
+          .setValue(this.plugin.settings.logging.logLevel)
+          .onChange(async (value) => {
+            this.plugin.settings.logging.logLevel = value as any;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Max Log File Size')
+      .setDesc('Maximum size of log files in MB')
+      .addSlider(slider => {
+        slider
+          .setLimits(1, 100, 1)
+          .setValue(this.plugin.settings.logging.maxLogFileSize / (1024 * 1024))
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.logging.maxLogFileSize = value * 1024 * 1024;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('View Log File')
+      .setDesc('Open the current log file in a new note')
+      .addButton(button => {
+        button
+          .setButtonText('View Logs')
+          .onClick(async () => {
+            const logger = await import('@/utils/logger').then(m => m.getLogger());
+            const logContent = await logger.getLogContents();
+            
+            if (logContent) {
+              const logFile = await this.app.vault.create(
+                `MCP Bridge Logs ${new Date().toISOString().split('T')[0]}.md`,
+                '```\n' + logContent + '\n```'
+              );
+              await this.app.workspace.openLinkText(logFile.path, '');
+            } else {
+              new Notice('No logs found');
+            }
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Clear Logs')
+      .setDesc('Delete all log files')
+      .addButton(button => {
+        button
+          .setButtonText('Clear Logs')
+          .setWarning()
+          .onClick(async () => {
+            const logger = await import('@/utils/logger').then(m => m.getLogger());
+            await logger.clearLogs();
+            new Notice('Logs cleared');
           });
       });
   }

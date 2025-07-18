@@ -4,6 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { getLogger } from '@/utils/logger';
 
 interface RetryOptions {
   maxAttempts: number;
@@ -66,11 +67,13 @@ export class MCPClient {
           lastRetryTime: attempt > 1 ? new Date() : undefined
         });
         
-        console.log(`Connected to MCP server: ${serverId} (attempt ${attempt}/${maxRetries})`);
+        const logger = getLogger();
+        logger.info('MCPClient', `Connected to MCP server: ${serverId} (attempt ${attempt}/${maxRetries})`);
         return;
       } catch (error) {
+        const logger = getLogger();
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`Failed to connect to MCP server ${serverId} (attempt ${attempt}/${maxRetries}):`, errorMessage);
+        logger.error('MCPClient', `Failed to connect to MCP server ${serverId} (attempt ${attempt}/${maxRetries})`, error instanceof Error ? error : new Error(errorMessage));
         
         // Update health monitor
         this.healthMonitor.set(serverId, {
