@@ -1,35 +1,5 @@
-# Gitleaks ignore patterns
-# These patterns exclude false positives from secret detection
+# Gitleaks ignore file
+# Use fingerprints to ignore specific false positives
 
-# Example API keys and documentation
-your-api-key-here
-your-brave-api-key-here
-your-serp-api-key-here
-sk-your-openai-api-key
-ghp_your-github-token-here
-secret_your-notion-integration-token
-xoxb-your-slack-bot-token
-your-anthropic-api-key
-your-custom-server-token
-your-server-secret
-test-api-key-12345
-
-# Test and mock tokens
-test-token
-mock-api-key
-example-key
-demo-token
-fake-secret
-
-# Documentation placeholders
-INSERT_YOUR_API_KEY_HERE
-REPLACE_WITH_YOUR_TOKEN
-YOUR_SECRET_HERE
-
-# File paths to ignore (contains example secrets)
-.env.example
-docs/
-examples/
-SECURITY.md
-INSTALL.md
-README.md
+# Example API key in SECURITY.md documentation
+fa92d6713ac363f8ed13720b012048ebabfa5f38:SECURITY.md:generic-api-key:125
