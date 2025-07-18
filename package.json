@@ -12,7 +12,9 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write src/**/*.{ts,tsx,json,md}",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist && rm -f main.js main.js.map styles.css"
+    "clean": "rm -rf dist && rm -f main.js main.js.map styles.css",
+    "security:scan": "gitleaks detect --source . --verbose",
+    "security:check": "npm audit && npm run security:scan"
   },
   "keywords": [
     "obsidian",

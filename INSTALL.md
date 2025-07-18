@@ -282,7 +282,21 @@ Each log entry contains:
 
 #### MCP Server Connection Issues
 
-1. **Test MCP servers independently:**
+1. **"spawn npx ENOENT" Error:**
+   This error occurs when Obsidian can't find the `npx` command. The plugin automatically resolves executable paths, but if you continue to see this error:
+   
+   ```bash
+   # Verify npx is available in your shell
+   which npx
+   
+   # If npx is not found, ensure Node.js is properly installed
+   node --version  # Should be v16 or higher
+   npm --version   # Should be available
+   ```
+   
+   **Solution:** The plugin includes automatic path resolution that finds executables in common locations. If you're still having issues, check the logs in plugin settings for detailed path resolution information.
+
+2. **Test MCP servers independently:**
    ```bash
    # Test filesystem server
    npx @modelcontextprotocol/server-filesystem /path/to/test
@@ -291,15 +305,16 @@ Each log entry contains:
    npx @modelcontextprotocol/server-filesystem ~/Documents
    ```
 
-2. **Check server paths:**
+3. **Check server paths:**
    - Ensure paths in configuration exist
    - Use absolute paths (not relative)
    - Check file/directory permissions
 
-3. **Verify Node.js installation:**
+4. **Verify Node.js installation:**
    ```bash
    node --version  # Should be v16 or higher
    npm --version   # Should be available
+   npx --version   # Should be available
    ```
 
 #### Plugin Errors

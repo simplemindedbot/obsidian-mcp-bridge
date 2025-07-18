@@ -39,7 +39,7 @@ export default class MCPBridgePlugin extends Plugin {
 
       logger.info('Plugin', 'Core components initialized successfully');
     } catch (error) {
-      logger.error('Plugin', 'Failed to initialize core components', error);
+      logger.error('Plugin', 'Failed to initialize core components', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
 

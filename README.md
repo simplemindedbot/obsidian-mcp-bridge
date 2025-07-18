@@ -209,6 +209,17 @@ sequenceDiagram
 - [ ] **Advanced AI Interactions** - Multi-step reasoning and complex queries
 - [ ] **Plugin Ecosystem** - Extensible architecture for custom integrations
 
+## 🔐 Security
+
+This plugin handles sensitive data including API keys and database credentials. Security best practices are built-in:
+
+- **Automatic Secret Protection**: API keys are redacted from logs and error messages
+- **Environment Variable Support**: Store sensitive configuration outside the codebase  
+- **Input Validation**: All user inputs and MCP responses are validated
+- **Secure Communication**: HTTPS/WSS required for external connections
+
+**For Developers**: See [SECURITY.md](SECURITY.md) for comprehensive security guidelines.
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
@@ -231,6 +242,10 @@ npm test
 
 # Run tests with coverage
 npm run test:coverage
+
+# Security scanning
+npm run security:scan       # Scan for secrets
+npm run security:check      # Full security audit
 
 # Type checking
 npm run type-check

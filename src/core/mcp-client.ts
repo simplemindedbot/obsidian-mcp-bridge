@@ -5,6 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { getLogger } from '@/utils/logger';
+import { PathResolver } from '@/utils/path-resolver';
 
 interface RetryOptions {
   maxAttempts: number;
@@ -424,12 +425,19 @@ class MCPConnection {
       throw new Error('Command is required for stdio connection');
     }
 
-    console.log(`Connecting via stdio: ${this.config.command} ${this.config.args?.join(' ') || ''}`);
+    const logger = getLogger();
+    logger.info('MCPConnection', `Attempting stdio connection: ${this.config.command} ${this.config.args?.join(' ') || ''}`);
     
     try {
+      // Resolve the command path dynamically to avoid ENOENT errors
+      const resolvedCommand = await PathResolver.resolveCommand(this.config.command);
+      logger.debug('MCPConnection', `Resolved command path: ${this.config.command} -> ${resolvedCommand}`);
+      
+      console.log(`Connecting via stdio: ${resolvedCommand} ${this.config.args?.join(' ') || ''}`);
+      
       // Create MCP transport - this handles process spawning internally
       this.transport = new StdioClientTransport({
-        command: this.config.command,
+        command: resolvedCommand,
         args: this.config.args || [],
         env: this.config.env || {}
       });
