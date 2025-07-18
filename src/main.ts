@@ -7,10 +7,10 @@ import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
 
 export default class MCPBridgePlugin extends Plugin {
-  settings: MCPBridgeSettings;
-  mcpClient: MCPClient;
-  knowledgeEngine: KnowledgeEngine;
-  bridgeInterface: BridgeInterface;
+  settings!: MCPBridgeSettings;
+  mcpClient!: MCPClient;
+  knowledgeEngine!: KnowledgeEngine;
+  bridgeInterface!: BridgeInterface;
 
   async onload() {
     console.log('Loading MCP Bridge plugin...');
@@ -56,7 +56,7 @@ export default class MCPBridgePlugin extends Plugin {
           // Show discovery results in a modal or sidebar
           new Notice(`Found ${discoveries.length} related items`);
         } catch (error) {
-          new Notice('Error discovering knowledge: ' + error.message);
+          new Notice('Error discovering knowledge: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
       }
     });
@@ -107,11 +107,15 @@ export default class MCPBridgePlugin extends Plugin {
     } else {
       // Create new chat view in the right sidebar
       leaf = workspace.getRightLeaf(false);
-      await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
+      if (leaf) {
+        await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
+      }
     }
 
     // Reveal and focus the chat view
-    workspace.revealLeaf(leaf);
+    if (leaf) {
+      workspace.revealLeaf(leaf);
+    }
   }
 
   private async initializeMCPConnections() {

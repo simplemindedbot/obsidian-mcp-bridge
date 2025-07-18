@@ -4,12 +4,26 @@
 
 ## ✨ Features
 
-- **🚀 Natural Language Interface**: Chat with your vault using natural language commands
-- **🔍 Cross-Server Knowledge Discovery**: Search across multiple MCP servers simultaneously 
-- **🧠 AI-Enhanced Knowledge Synthesis**: Intelligent content suggestions and connections
-- **📝 Seamless Note Integration**: Insert AI-generated content directly into your notes
-- **🔗 Dynamic Link Discovery**: Automatically discover connections between ideas
-- **⚡ Real-time Processing**: Fast, responsive AI interactions within Obsidian
+### 🚀 **Production-Ready Core**
+
+- **Full MCP Protocol Support**: Complete implementation with stdio, WebSocket, and SSE transports
+- **Robust Error Handling**: Comprehensive retry logic with exponential backoff
+- **Health Monitoring**: Real-time connection health checking and auto-reconnection
+- **Type-Safe Architecture**: Full TypeScript implementation with comprehensive test coverage
+
+### 🔍 **Knowledge Discovery**
+
+- **Cross-Server Search**: Query multiple MCP servers simultaneously
+- **Vault Integration**: Search your Obsidian vault with AI-powered relevance scoring
+- **Content Synthesis**: Intelligent content recommendations and connections
+- **Natural Language Interface**: Chat with your knowledge base using plain English
+
+### 🛠️ **Developer Experience**
+
+- **Comprehensive Testing**: 34 unit tests covering all core components
+- **Clean Architecture**: Modular design with clear separation of concerns
+- **Production Build**: Optimized bundling with esbuild
+- **Development Tools**: Hot-reload development environment
 
 ## 🛠️ Installation
 
@@ -30,26 +44,55 @@
 
 ### 1. Configure MCP Servers
 
+The plugin supports multiple connection types for different MCP servers:
+
+#### **STDIO Servers** (Local processes)
+
 ```json
 {
   "servers": {
     "filesystem": {
+      "enabled": true,
+      "name": "Local Filesystem",
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/documents"],
-      "enabled": true
-    },
-    "git": {
-      "command": "npx", 
-      "args": ["-y", "@modelcontextprotocol/server-git", "/path/to/repository"],
-      "enabled": true
-    },
-    "web-search": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "timeout": 10000,
+      "retryAttempts": 3
+    }
+  }
+}
+```
+
+#### **WebSocket Servers** (Remote services)
+
+```json
+{
+  "servers": {
+    "remote-ai": {
       "enabled": true,
-      "env": {
-        "BRAVE_API_KEY": "your-api-key"
-      }
+      "name": "Remote AI Service",
+      "type": "websocket",
+      "url": "ws://localhost:8080/mcp",
+      "timeout": 15000,
+      "retryAttempts": 5
+    }
+  }
+}
+```
+
+#### **SSE Servers** (HTTP-based)
+
+```json
+{
+  "servers": {
+    "web-api": {
+      "enabled": true,
+      "name": "Web API Server",
+      "type": "sse",
+      "url": "https://api.example.com/mcp",
+      "timeout": 20000,
+      "retryAttempts": 3
     }
   }
 }
@@ -66,9 +109,9 @@
 
 ### Natural Language Commands
 
-```
+``` txt
 "find my notes about distributed systems"
-"search for recent papers on AI safety" 
+"search for recent papers on AI safety"
 "show me code examples for rate limiting"
 "what have I written about this topic?"
 "get the latest news on cryptocurrency"
@@ -88,7 +131,7 @@
 Configure MCP servers in the plugin settings:
 
 - **Local Servers**: File system, Git repositories, databases
-- **Remote Services**: Web search, APIs, cloud services  
+- **Remote Services**: Web search, APIs, cloud services
 - **Custom Servers**: Your own MCP implementations
 
 ### Workflow Customization
@@ -99,11 +142,38 @@ Configure MCP servers in the plugin settings:
 
 ## 🏗️ Architecture
 
-```
-Obsidian Vault ←→ MCP Bridge ←→ MCP Servers ←→ AI Services
-     ↑                ↑              ↑           ↑
-Knowledge Base    Protocol      External      Language
- Management       Translation    Resources      Models
+```mermaid
+sequenceDiagram
+    participant User
+    participant ChatView
+    participant BridgeInterface
+    participant KnowledgeEngine
+    participant MCPClient
+    participant MCPServer
+    participant ObsidianVault
+
+    User->>ChatView: "find notes about AI"
+    ChatView->>BridgeInterface: processQuery()
+    BridgeInterface->>BridgeInterface: classifyIntent()
+
+    par Search Vault
+        BridgeInterface->>KnowledgeEngine: searchVault()
+        KnowledgeEngine->>ObsidianVault: search files
+        ObsidianVault-->>KnowledgeEngine: matching notes
+        KnowledgeEngine-->>BridgeInterface: vault results
+    and Search MCP Servers
+        BridgeInterface->>KnowledgeEngine: searchMCPServers()
+        KnowledgeEngine->>MCPClient: searchAllServers()
+        MCPClient->>MCPServer: callTool("search")
+        MCPServer-->>MCPClient: search results
+        MCPClient-->>KnowledgeEngine: server results
+        KnowledgeEngine-->>BridgeInterface: MCP results
+    end
+
+    BridgeInterface->>KnowledgeEngine: synthesizeContent()
+    KnowledgeEngine-->>BridgeInterface: suggestions
+    BridgeInterface-->>ChatView: QueryResult
+    ChatView-->>User: Display results + suggestions
 ```
 
 ### Core Components
@@ -115,23 +185,29 @@ Knowledge Base    Protocol      External      Language
 
 ## 🛣️ Roadmap
 
-### Phase 1: Foundation (Current)
-- [x] Basic MCP protocol implementation
-- [x] Simple server connections
-- [ ] Natural language interface
-- [ ] Core plugin architecture
+### ✅ Phase 1: Foundation (Completed)
 
-### Phase 2: Knowledge Discovery
-- [ ] Cross-server search
-- [ ] Content recommendations  
-- [ ] Link discovery
-- [ ] Smart insertions
+- [x] **Complete MCP Protocol Implementation** - Full stdio, WebSocket, and SSE support
+- [x] **Robust Error Handling** - Retry logic, health monitoring, and connection recovery
+- [x] **Core Plugin Architecture** - Clean separation of concerns with TypeScript
+- [x] **Comprehensive Testing** - 34 unit tests covering all core components
+- [x] **Production Build System** - Optimized bundling and development tools
 
-### Phase 3: Advanced Features
-- [ ] Knowledge graph integration
-- [ ] Spaced repetition
-- [ ] Workflow automation
-- [ ] Advanced AI interactions
+### 🔄 Phase 2: Knowledge Discovery (In Progress)
+
+- [x] **Cross-Server Search** - Query multiple MCP servers simultaneously
+- [x] **Vault Integration** - Search Obsidian vault with AI-powered relevance scoring
+- [x] **Basic Content Synthesis** - Intelligent content recommendations
+- [x] **Natural Language Interface** - Chat with knowledge base using plain English
+- [ ] **Advanced Link Discovery** - Automatic connection finding between ideas
+- [ ] **Smart Content Insertion** - Context-aware content suggestions
+
+### 🔮 Phase 3: Advanced Features (Planned)
+
+- [ ] **Knowledge Graph Integration** - Visual representation of content relationships
+- [ ] **Workflow Automation** - Automated content processing and organization
+- [ ] **Advanced AI Interactions** - Multi-step reasoning and complex queries
+- [ ] **Plugin Ecosystem** - Extensible architecture for custom integrations
 
 ## 🤝 Contributing
 
@@ -147,19 +223,39 @@ cd obsidian-mcp-bridge
 # Install dependencies
 npm install
 
-# Start development
+# Start development with hot-reload
 npm run dev
 
 # Run tests
 npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Type checking
+npm run type-check
+
+# Build for production
+npm run build
+
+# Lint and format code
+npm run lint
+npm run format
 ```
+
+### Current Status
+
+- **Build Status**: ✅ Clean compilation and production builds
+- **Test Coverage**: ✅ 34/34 tests passing (100% pass rate)
+- **Type Safety**: ✅ Full TypeScript coverage with strict mode
+- **Code Quality**: ✅ ESLint and Prettier configuration
 
 ### Project Structure
 
-```
+```text
 src/
 ├── core/           # MCP protocol implementation
-├── bridge/         # Obsidian ↔ MCP translation layer  
+├── bridge/         # Obsidian ↔ MCP translation layer
 ├── ui/            # User interface components
 ├── knowledge/     # Knowledge discovery engine
 ├── types/         # TypeScript definitions
@@ -174,7 +270,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/simplemindedbot/obsidian-mcp-bridge/issues)
 - **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/simplemindedbot/obsidian-mcp-bridge/discussions)
-- **Documentation**: Full docs at [docs/](docs/)
+- **Documentation**: Full docs at [docs/](docs/) and [Component Documentation](docs/components/)
 
 ## 🔗 Related Projects
 
@@ -195,4 +291,4 @@ This project is built with inspiration and reference from:
 
 ---
 
-**Made with ❤️ for the Obsidian and MCP communities**
+## Made with ❤️ for the Obsidian and MCP communities

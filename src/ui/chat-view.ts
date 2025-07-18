@@ -6,10 +6,10 @@ export const CHAT_VIEW_TYPE = 'mcp-bridge-chat';
 
 export class ChatView extends ItemView {
   private bridgeInterface: BridgeInterface;
-  private chatContainer: HTMLElement;
-  private inputContainer: HTMLElement;
-  private chatInput: HTMLInputElement;
-  private sendButton: HTMLButtonElement;
+  private chatContainer!: HTMLElement;
+  private inputContainer!: HTMLElement;
+  private chatInput!: HTMLInputElement;
+  private sendButton!: HTMLButtonElement;
   private messages: ChatMessage[] = [];
 
   constructor(leaf: WorkspaceLeaf, bridgeInterface: BridgeInterface) {
@@ -108,7 +108,7 @@ export class ChatView extends ItemView {
       this.addMessage({
         id: Math.random().toString(36),
         role: 'assistant',
-        content: `Error: ${error.message}`,
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       });
     }

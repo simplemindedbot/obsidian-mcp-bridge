@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import { App, MarkdownView } from 'obsidian';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
 import { ChatMessage, KnowledgeItem } from '@/types/settings';
@@ -57,7 +57,7 @@ export class BridgeInterface {
       return {
         id: Math.random().toString(36),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${error.message}`,
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
         metadata: {
           processingTime: Date.now() - startTime
@@ -67,7 +67,7 @@ export class BridgeInterface {
   }
 
   async insertContentAtCursor(content: string): Promise<void> {
-    const activeView = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView);
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!activeView) {
       throw new Error('No active markdown view found');
     }
