@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App } from 'obsidian';
 
 export enum LogLevel {
   ERROR = 0,
@@ -27,7 +27,7 @@ export class Logger {
   private maxLogFiles: number = 5;
   private logBuffer: LogEntry[] = [];
   private bufferFlushInterval: number = 5000; // 5 seconds
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: number;
 
   constructor(app: App) {
     this.app = app;

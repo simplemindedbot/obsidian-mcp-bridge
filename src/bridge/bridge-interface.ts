@@ -1,7 +1,7 @@
 import { App, MarkdownView } from 'obsidian';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
-import { ChatMessage, KnowledgeItem } from '@/types/settings';
+import { ChatMessage } from '@/types/settings';
 
 export class BridgeInterface {
   private app: App;

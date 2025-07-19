@@ -91,12 +91,12 @@ export class KnowledgeEngine {
     return matches / queryWords.length;
   }
 
-  async generateSuggestions(currentNote: string): Promise<string[]> {
+  async generateSuggestions(_currentNote: string): Promise<string[]> {
     // TODO: Generate content suggestions based on current note
     return [];
   }
 
-  async findRelatedNotes(notePath: string): Promise<string[]> {
+  async findRelatedNotes(_notePath: string): Promise<string[]> {
     // TODO: Find notes related to the given note
     return [];
   }

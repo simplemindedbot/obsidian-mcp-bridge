@@ -1,4 +1,4 @@
-import { Plugin, TFile, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
 import { MCPBridgeSettings, DEFAULT_SETTINGS } from '@/types/settings';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
@@ -69,7 +69,6 @@ export default class MCPBridgePlugin extends Plugin {
       name: 'Discover related knowledge',
       hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'k' }],
       editorCallback: async (editor) => {
-        const cursor = editor.getCursor();
         const context = this.getCurrentContext(editor);
         
         try {
