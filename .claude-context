@@ -30,7 +30,7 @@ npm run build && npm run lint && npm run test && npm run security:scan
 - styles.css - UI styling for new argument inputs
 
 ### Environment Variables
-
+BRAVE_API_KEY="your-brave-api-key-here"
 
 ### MCP Server Test Commands
 # Filesystem server (should work after migration)
