@@ -1,11 +1,15 @@
-import { MCPBridgeSettings, MCPServerConfig, MCPResponse } from '@/types/settings';
-import { ChildProcess } from 'child_process';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { getLogger } from '@/utils/logger';
-import { PathResolver } from '@/utils/path-resolver';
+import {
+  MCPBridgeSettings,
+  MCPServerConfig,
+  MCPResponse,
+} from "@/types/settings";
+import { ChildProcess } from "child_process";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { getLogger } from "@/utils/logger";
+import { PathResolver } from "@/utils/path-resolver";
 
 interface RetryOptions {
   maxAttempts: number;
@@ -31,7 +35,7 @@ export class MCPClient {
     maxAttempts: 3,
     baseDelay: 1000,
     maxDelay: 30000,
-    backoffFactor: 2
+    backoffFactor: 2,
   };
 
   constructor(settings: MCPBridgeSettings) {
@@ -39,10 +43,12 @@ export class MCPClient {
   }
 
   async initialize(): Promise<void> {
-    console.log('Initializing MCP Client...');
-    
+    console.log("Initializing MCP Client...");
+
     // Initialize connections for enabled servers
-    for (const [serverId, serverConfig] of Object.entries(this.settings.servers)) {
+    for (const [serverId, serverConfig] of Object.entries(
+      this.settings.servers,
+    )) {
       if (serverConfig.enabled) {
         await this.initializeConnection(serverId, serverConfig);
       }
@@ -51,40 +57,52 @@ export class MCPClient {
     this.isInitialized = true;
   }
 
-  private async initializeConnection(serverId: string, serverConfig: MCPServerConfig): Promise<void> {
-    const maxRetries = serverConfig.retryAttempts || this.retryOptions.maxAttempts;
-    
+  private async initializeConnection(
+    serverId: string,
+    serverConfig: MCPServerConfig,
+  ): Promise<void> {
+    const maxRetries =
+      serverConfig.retryAttempts || this.retryOptions.maxAttempts;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const connection = new MCPConnection(serverId, serverConfig);
         await connection.connect();
         this.connections.set(serverId, connection);
-        
+
         // Update health monitor
         this.healthMonitor.set(serverId, {
           serverId,
           isConnected: true,
           retryCount: attempt - 1,
-          lastRetryTime: attempt > 1 ? new Date() : undefined
+          lastRetryTime: attempt > 1 ? new Date() : undefined,
         });
-        
+
         const logger = getLogger();
-        logger.info('MCPClient', `Connected to MCP server: ${serverId} (attempt ${attempt}/${maxRetries})`);
+        logger.info(
+          "MCPClient",
+          `Connected to MCP server: ${serverId} (attempt ${attempt}/${maxRetries})`,
+        );
         return;
       } catch (error) {
         const logger = getLogger();
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('MCPClient', `Failed to connect to MCP server ${serverId} (attempt ${attempt}/${maxRetries})`, error instanceof Error ? error : new Error(errorMessage));
-        
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        logger.error(
+          "MCPClient",
+          `Failed to connect to MCP server ${serverId} (attempt ${attempt}/${maxRetries})`,
+          error instanceof Error ? error : new Error(errorMessage),
+        );
+
         // Update health monitor
         this.healthMonitor.set(serverId, {
           serverId,
           isConnected: false,
           lastError: error instanceof Error ? error : new Error(errorMessage),
           retryCount: attempt,
-          lastRetryTime: new Date()
+          lastRetryTime: new Date(),
         });
-        
+
         // If this isn't the last attempt, wait before retrying
         if (attempt < maxRetries) {
           const delay = this.calculateBackoffDelay(attempt);
@@ -93,22 +111,26 @@ export class MCPClient {
         }
       }
     }
-    
-    console.error(`Failed to connect to MCP server ${serverId} after ${maxRetries} attempts`);
+
+    console.error(
+      `Failed to connect to MCP server ${serverId} after ${maxRetries} attempts`,
+    );
   }
 
   private calculateBackoffDelay(attempt: number): number {
-    const delay = this.retryOptions.baseDelay * Math.pow(this.retryOptions.backoffFactor, attempt - 1);
+    const delay =
+      this.retryOptions.baseDelay *
+      Math.pow(this.retryOptions.backoffFactor, attempt - 1);
     return Math.min(delay, this.retryOptions.maxDelay);
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async disconnect(): Promise<void> {
-    console.log('Disconnecting MCP Client...');
-    
+    console.log("Disconnecting MCP Client...");
+
     for (const [serverId, connection] of this.connections) {
       try {
         await connection.disconnect();
@@ -124,13 +146,17 @@ export class MCPClient {
 
   async updateSettings(newSettings: MCPBridgeSettings): Promise<void> {
     this.settings = newSettings;
-    
+
     // Reinitialize connections
     await this.disconnect();
     await this.initialize();
   }
 
-  async callTool(serverId: string, toolName: string, parameters?: any): Promise<MCPResponse> {
+  async callTool(
+    serverId: string,
+    toolName: string,
+    parameters?: any,
+  ): Promise<MCPResponse> {
     const connection = this.connections.get(serverId);
     if (!connection) {
       throw new Error(`No connection to server: ${serverId}`);
@@ -138,24 +164,25 @@ export class MCPClient {
 
     try {
       const result = await connection.callTool(toolName, parameters);
-      
+
       // Update health status on successful call
       const health = this.healthMonitor.get(serverId);
       if (health) {
         health.isConnected = true;
         health.lastError = undefined;
       }
-      
+
       return result;
     } catch (error) {
       // Update health status on error
       const health = this.healthMonitor.get(serverId);
       if (health) {
         health.isConnected = false;
-        health.lastError = error instanceof Error ? error : new Error('Unknown error');
+        health.lastError =
+          error instanceof Error ? error : new Error("Unknown error");
         health.lastRetryTime = new Date();
       }
-      
+
       console.error(`Tool call failed for server ${serverId}:`, error);
       throw error;
     }
@@ -172,14 +199,16 @@ export class MCPClient {
 
   async searchAcrossServers(query: string): Promise<any[]> {
     const results: any[] = [];
-    
+
     for (const [serverId, connection] of this.connections) {
       try {
         const serverResults = await connection.search(query);
-        results.push(...serverResults.map((result: any) => ({
-          ...result,
-          source: serverId
-        })));
+        results.push(
+          ...serverResults.map((result: any) => ({
+            ...result,
+            source: serverId,
+          })),
+        );
       } catch (error) {
         console.warn(`Search failed for server ${serverId}:`, error);
       }
@@ -229,13 +258,13 @@ export class MCPClient {
 
   async healthCheck(): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
-    
+
     for (const [serverId, connection] of this.connections) {
       try {
         // Try to list tools as a basic health check
         await connection.getResources();
         results.set(serverId, true);
-        
+
         // Update health monitor
         const health = this.healthMonitor.get(serverId);
         if (health) {
@@ -244,17 +273,18 @@ export class MCPClient {
         }
       } catch (error) {
         results.set(serverId, false);
-        
+
         // Update health monitor
         const health = this.healthMonitor.get(serverId);
         if (health) {
           health.isConnected = false;
-          health.lastError = error instanceof Error ? error : new Error('Health check failed');
+          health.lastError =
+            error instanceof Error ? error : new Error("Health check failed");
           health.lastRetryTime = new Date();
         }
       }
     }
-    
+
     return results;
   }
 }
@@ -264,7 +294,10 @@ class MCPConnection {
   private config: MCPServerConfig;
   private process?: ChildProcess; // Node.js child process for stdio
   private client?: Client; // MCP SDK client
-  private transport?: StdioClientTransport | WebSocketClientTransport | SSEClientTransport; // MCP transport
+  private transport?:
+    | StdioClientTransport
+    | WebSocketClientTransport
+    | SSEClientTransport; // MCP transport
   private isConnected = false;
 
   constructor(serverId: string, config: MCPServerConfig) {
@@ -274,15 +307,18 @@ class MCPConnection {
 
   async connect(): Promise<void> {
     console.log(`Connecting to MCP server: ${this.serverId}`);
-    
+
     const timeout = this.config.timeout || 10000; // Default 10 second timeout
-    
+
     try {
       const connectPromise = this.performConnection();
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error(`Connection timeout after ${timeout}ms`)), timeout);
+        setTimeout(
+          () => reject(new Error(`Connection timeout after ${timeout}ms`)),
+          timeout,
+        );
       });
-      
+
       await Promise.race([connectPromise, timeoutPromise]);
       this.isConnected = true;
     } catch (error) {
@@ -294,13 +330,13 @@ class MCPConnection {
 
   private async performConnection(): Promise<void> {
     switch (this.config.type) {
-      case 'stdio':
+      case "stdio":
         await this.connectStdio();
         break;
-      case 'websocket':
+      case "websocket":
         await this.connectWebSocket();
         break;
-      case 'sse':
+      case "sse":
         await this.connectSSE();
         break;
       default:
@@ -324,7 +360,10 @@ class MCPConnection {
       try {
         await this.transport.close();
       } catch (error) {
-        console.error(`Error closing MCP transport for ${this.serverId}:`, error);
+        console.error(
+          `Error closing MCP transport for ${this.serverId}:`,
+          error,
+        );
       }
       this.transport = undefined;
     }
@@ -345,27 +384,32 @@ class MCPConnection {
     try {
       // List available tools first to validate the tool exists
       const tools = await this.client.listTools();
-      const tool = tools.tools.find(t => t.name === toolName);
-      
+      const tool = tools.tools.find((t) => t.name === toolName);
+
       if (!tool) {
-        throw new Error(`Tool '${toolName}' not found on server '${this.serverId}'`);
+        throw new Error(
+          `Tool '${toolName}' not found on server '${this.serverId}'`,
+        );
       }
 
       // Call the tool with the MCP client
       const result = await this.client.callTool({
         name: toolName,
-        arguments: parameters || {}
+        arguments: parameters || {},
       });
 
       return {
         id: Math.random().toString(36),
         result: {
           content: result.content || [],
-          isError: result.isError || false
-        }
+          isError: result.isError || false,
+        },
       };
     } catch (error) {
-      console.error(`Error calling tool ${toolName} on server ${this.serverId}:`, error);
+      console.error(
+        `Error calling tool ${toolName} on server ${this.serverId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -380,7 +424,10 @@ class MCPConnection {
       const resources = await this.client.listResources();
       return resources.resources || [];
     } catch (error) {
-      console.error(`Error listing resources on server ${this.serverId}:`, error);
+      console.error(
+        `Error listing resources on server ${this.serverId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -393,26 +440,30 @@ class MCPConnection {
     try {
       // First, try to find a search tool
       const tools = await this.client.listTools();
-      const searchTool = tools.tools.find(t => 
-        t.name.toLowerCase().includes('search') || 
-        t.name.toLowerCase().includes('find') ||
-        t.name.toLowerCase().includes('query')
+      const searchTool = tools.tools.find(
+        (t) =>
+          t.name.toLowerCase().includes("search") ||
+          t.name.toLowerCase().includes("find") ||
+          t.name.toLowerCase().includes("query"),
       );
 
       if (searchTool) {
         // Use the search tool if available
         const result = await this.client.callTool({
           name: searchTool.name,
-          arguments: { query }
+          arguments: { query },
         });
-        return Array.isArray(result.content) ? result.content : [result.content];
+        return Array.isArray(result.content)
+          ? result.content
+          : [result.content];
       }
 
       // Fallback: search through resources
       const resources = await this.getResources();
-      return resources.filter(resource => 
-        resource.name?.toLowerCase().includes(query.toLowerCase()) ||
-        resource.description?.toLowerCase().includes(query.toLowerCase())
+      return resources.filter(
+        (resource) =>
+          resource.name?.toLowerCase().includes(query.toLowerCase()) ||
+          resource.description?.toLowerCase().includes(query.toLowerCase()),
       );
     } catch (error) {
       console.error(`Error searching on server ${this.serverId}:`, error);
@@ -422,42 +473,53 @@ class MCPConnection {
 
   private async connectStdio(): Promise<void> {
     if (!this.config.command) {
-      throw new Error('Command is required for stdio connection');
+      throw new Error("Command is required for stdio connection");
     }
 
     const logger = getLogger();
-    logger.info('MCPConnection', `Attempting stdio connection: ${this.config.command} ${this.config.args?.join(' ') || ''}`);
-    
+    logger.info(
+      "MCPConnection",
+      `Attempting stdio connection: ${this.config.command} ${this.config.args?.join(" ") || ""}`,
+    );
+
     try {
       // Resolve the command path dynamically to avoid ENOENT errors
-      const resolvedCommand = await PathResolver.resolveCommand(this.config.command);
-      logger.debug('MCPConnection', `Resolved command path: ${this.config.command} -> ${resolvedCommand}`);
-      
+      const resolvedCommand = await PathResolver.resolveCommand(
+        this.config.command,
+      );
+      logger.debug(
+        "MCPConnection",
+        `Resolved command path: ${this.config.command} -> ${resolvedCommand}`,
+      );
+
       // Add working directory to args if specified
       const args = [...(this.config.args || [])];
       if (this.config.workingDirectory) {
         args.push(this.config.workingDirectory);
       }
-      
-      console.log(`Connecting via stdio: ${resolvedCommand} ${args.join(' ')}`);
-      
+
+      console.log(`Connecting via stdio: ${resolvedCommand} ${args.join(" ")}`);
+
       // Create MCP transport - this handles process spawning internally
       this.transport = new StdioClientTransport({
         command: resolvedCommand,
         args: args,
-        env: this.config.env || {}
+        env: this.config.env || {},
       });
 
       // Create MCP client
-      this.client = new Client({
-        name: 'obsidian-mcp-bridge',
-        version: '0.1.0'
-      }, {
-        capabilities: {
-          tools: {},
-          resources: {}
-        }
-      });
+      this.client = new Client(
+        {
+          name: "obsidian-mcp-bridge",
+          version: "0.1.0",
+        },
+        {
+          capabilities: {
+            tools: {},
+            resources: {},
+          },
+        },
+      );
 
       // Connect to the MCP server
       await this.client.connect(this.transport);
@@ -471,25 +533,28 @@ class MCPConnection {
 
   private async connectWebSocket(): Promise<void> {
     if (!this.config.url) {
-      throw new Error('WebSocket URL required for websocket connection');
+      throw new Error("WebSocket URL required for websocket connection");
     }
 
     console.log(`Connecting via WebSocket: ${this.config.url}`);
-    
+
     try {
       // Create WebSocket transport using the official MCP SDK
       this.transport = new WebSocketClientTransport(new URL(this.config.url));
 
       // Create MCP client
-      this.client = new Client({
-        name: 'obsidian-mcp-bridge',
-        version: '0.1.0'
-      }, {
-        capabilities: {
-          tools: {},
-          resources: {}
-        }
-      });
+      this.client = new Client(
+        {
+          name: "obsidian-mcp-bridge",
+          version: "0.1.0",
+        },
+        {
+          capabilities: {
+            tools: {},
+            resources: {},
+          },
+        },
+      );
 
       // Set up error handling
       this.transport.onerror = (error) => {
@@ -504,9 +569,14 @@ class MCPConnection {
 
       // Connect to the MCP server
       await this.client.connect(this.transport);
-      console.log(`Successfully connected to MCP server via WebSocket: ${this.serverId}`);
+      console.log(
+        `Successfully connected to MCP server via WebSocket: ${this.serverId}`,
+      );
     } catch (error) {
-      console.error(`Failed to connect via WebSocket to ${this.serverId}:`, error);
+      console.error(
+        `Failed to connect via WebSocket to ${this.serverId}:`,
+        error,
+      );
       await this.disconnect();
       throw error;
     }
@@ -514,25 +584,28 @@ class MCPConnection {
 
   private async connectSSE(): Promise<void> {
     if (!this.config.url) {
-      throw new Error('SSE URL required for SSE connection');
+      throw new Error("SSE URL required for SSE connection");
     }
 
     console.log(`Connecting via SSE: ${this.config.url}`);
-    
+
     try {
       // Create SSE transport using the official MCP SDK
       this.transport = new SSEClientTransport(new URL(this.config.url));
 
       // Create MCP client
-      this.client = new Client({
-        name: 'obsidian-mcp-bridge',
-        version: '0.1.0'
-      }, {
-        capabilities: {
-          tools: {},
-          resources: {}
-        }
-      });
+      this.client = new Client(
+        {
+          name: "obsidian-mcp-bridge",
+          version: "0.1.0",
+        },
+        {
+          capabilities: {
+            tools: {},
+            resources: {},
+          },
+        },
+      );
 
       // Set up error handling
       this.transport.onerror = (error) => {
@@ -547,7 +620,9 @@ class MCPConnection {
 
       // Connect to the MCP server
       await this.client.connect(this.transport);
-      console.log(`Successfully connected to MCP server via SSE: ${this.serverId}`);
+      console.log(
+        `Successfully connected to MCP server via SSE: ${this.serverId}`,
+      );
     } catch (error) {
       console.error(`Failed to connect via SSE to ${this.serverId}:`, error);
       await this.disconnect();

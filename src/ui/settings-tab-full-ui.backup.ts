@@ -1,8 +1,13 @@
+// BACKUP FILE: Full UI for MCP server editing
+// This file contains the complete server configuration UI that was removed
+// from settings-tab.ts to focus on core functionality.
+// Keep this file for future reference when we want to restore the GUI.
+
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import MCPBridgePlugin from "@/main";
 import { MCPServerConfig } from "@/types/settings";
 
-export class MCPBridgeSettingTab extends PluginSettingTab {
+export class MCPBridgeSettingTabFullUI extends PluginSettingTab {
   plugin: MCPBridgePlugin;
 
   constructor(app: App, plugin: MCPBridgePlugin) {

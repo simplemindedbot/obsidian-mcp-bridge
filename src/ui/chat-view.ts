@@ -1,8 +1,8 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { BridgeInterface } from '@/bridge/bridge-interface';
-import { ChatMessage } from '@/types/settings';
+import { ItemView, WorkspaceLeaf } from "obsidian";
+import { BridgeInterface } from "@/bridge/bridge-interface";
+import { ChatMessage } from "@/types/settings";
 
-export const CHAT_VIEW_TYPE = 'mcp-bridge-chat';
+export const CHAT_VIEW_TYPE = "mcp-bridge-chat";
 
 export class ChatView extends ItemView {
   private bridgeInterface: BridgeInterface;
@@ -22,57 +22,62 @@ export class ChatView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'MCP Bridge Chat';
+    return "MCP Bridge Chat";
   }
 
   getIcon(): string {
-    return 'message-circle';
+    return "message-circle";
   }
 
   async onOpen(): Promise<void> {
     const container = this.containerEl.children[1];
     container.empty();
-    container.addClass('mcp-bridge-chat-view');
+    container.addClass("mcp-bridge-chat-view");
 
     // Create chat header
-    const header = container.createEl('div', { cls: 'mcp-bridge-chat-header' });
-    header.createEl('h3', { text: 'MCP Bridge Chat' });
+    const header = container.createEl("div", { cls: "mcp-bridge-chat-header" });
+    header.createEl("h3", { text: "MCP Bridge Chat" });
 
     // Create chat container
-    this.chatContainer = container.createEl('div', { cls: 'mcp-bridge-chat-container' });
-
-    // Create input container
-    this.inputContainer = container.createEl('div', { cls: 'mcp-bridge-input-container' });
-    
-    this.chatInput = this.inputContainer.createEl('input', {
-      type: 'text',
-      placeholder: 'Ask me anything about your knowledge...',
-      cls: 'mcp-bridge-chat-input'
+    this.chatContainer = container.createEl("div", {
+      cls: "mcp-bridge-chat-container",
     });
 
-    this.sendButton = this.inputContainer.createEl('button', {
-      text: 'Send',
-      cls: 'mcp-bridge-send-button'
+    // Create input container
+    this.inputContainer = container.createEl("div", {
+      cls: "mcp-bridge-input-container",
+    });
+
+    this.chatInput = this.inputContainer.createEl("input", {
+      type: "text",
+      placeholder: "Ask me anything about your knowledge...",
+      cls: "mcp-bridge-chat-input",
+    });
+
+    this.sendButton = this.inputContainer.createEl("button", {
+      text: "Send",
+      cls: "mcp-bridge-send-button",
     });
 
     // Add event listeners
-    this.chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+    this.chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         this.sendMessage();
       }
     });
 
-    this.sendButton.addEventListener('click', () => {
+    this.sendButton.addEventListener("click", () => {
       this.sendMessage();
     });
 
     // Add welcome message
     this.addMessage({
-      id: 'welcome',
-      role: 'assistant',
-      content: 'Hello! I\'m your MCP Bridge assistant. I can help you search your vault, discover related content, and answer questions using connected MCP servers.\n\nTry asking:\n- "Find my notes about machine learning"\n- "What have I written about this topic?"\n- "Discover related content about distributed systems"',
-      timestamp: new Date()
+      id: "welcome",
+      role: "assistant",
+      content:
+        'Hello! I\'m your MCP Bridge assistant. I can help you search your vault, discover related content, and answer questions using connected MCP servers.\n\nTry asking:\n- "Find my notes about machine learning"\n- "What have I written about this topic?"\n- "Discover related content about distributed systems"',
+      timestamp: new Date(),
     });
   }
 
@@ -87,13 +92,13 @@ export class ChatView extends ItemView {
     // Add user message
     const userMessage: ChatMessage = {
       id: Math.random().toString(36),
-      role: 'user',
+      role: "user",
       content: query,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     this.addMessage(userMessage);
-    this.chatInput.value = '';
+    this.chatInput.value = "";
 
     // Show typing indicator
     this.showTypingIndicator();
@@ -107,9 +112,9 @@ export class ChatView extends ItemView {
       this.hideTypingIndicator();
       this.addMessage({
         id: Math.random().toString(36),
-        role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date()
+        role: "assistant",
+        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        timestamp: new Date(),
       });
     }
   }
@@ -117,25 +122,29 @@ export class ChatView extends ItemView {
   private addMessage(message: ChatMessage): void {
     this.messages.push(message);
 
-    const messageEl = this.chatContainer.createEl('div', {
-      cls: `mcp-bridge-message mcp-bridge-message-${message.role}`
+    const messageEl = this.chatContainer.createEl("div", {
+      cls: `mcp-bridge-message mcp-bridge-message-${message.role}`,
     });
 
-    const contentEl = messageEl.createEl('div', { cls: 'mcp-bridge-message-content' });
-    
+    const contentEl = messageEl.createEl("div", {
+      cls: "mcp-bridge-message-content",
+    });
+
     // Simple markdown rendering (can be enhanced)
     contentEl.innerHTML = this.renderMarkdown(message.content);
 
-    const metaEl = messageEl.createEl('div', { cls: 'mcp-bridge-message-meta' });
-    metaEl.createEl('span', { 
+    const metaEl = messageEl.createEl("div", {
+      cls: "mcp-bridge-message-meta",
+    });
+    metaEl.createEl("span", {
       text: message.timestamp.toLocaleTimeString(),
-      cls: 'mcp-bridge-message-time'
+      cls: "mcp-bridge-message-time",
     });
 
     if (message.metadata?.processingTime) {
-      metaEl.createEl('span', {
+      metaEl.createEl("span", {
         text: ` (${message.metadata.processingTime}ms)`,
-        cls: 'mcp-bridge-processing-time'
+        cls: "mcp-bridge-processing-time",
       });
     }
 
@@ -144,14 +153,16 @@ export class ChatView extends ItemView {
   }
 
   private showTypingIndicator(): void {
-    const indicator = this.chatContainer.createEl('div', {
-      cls: 'mcp-bridge-typing-indicator'
+    const indicator = this.chatContainer.createEl("div", {
+      cls: "mcp-bridge-typing-indicator",
     });
-    indicator.createEl('span', { text: 'Assistant is thinking...' });
+    indicator.createEl("span", { text: "Assistant is thinking..." });
   }
 
   private hideTypingIndicator(): void {
-    const indicator = this.chatContainer.querySelector('.mcp-bridge-typing-indicator');
+    const indicator = this.chatContainer.querySelector(
+      ".mcp-bridge-typing-indicator",
+    );
     if (indicator) {
       indicator.remove();
     }
@@ -160,9 +171,9 @@ export class ChatView extends ItemView {
   private renderMarkdown(content: string): string {
     // Simple markdown rendering - can be enhanced with a proper markdown parser
     return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      .replace(/\n/g, '<br>');
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/`(.*?)`/g, "<code>$1</code>")
+      .replace(/\n/g, "<br>");
   }
 }
