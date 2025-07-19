@@ -1,0 +1,88 @@
+# Claude Code Project Context
+# This file contains commands and context for efficient development
+
+## Quick Development Commands
+
+# Build and test the plugin
+npm run build && npm run security:scan
+
+# Full development cycle
+npm run build && npm run lint && npm run test && npm run security:scan
+
+# Copy plugin to Obsidian (update path as needed)
+# cp main.js manifest.json styles.css /path/to/obsidian/vault/.obsidian/plugins/obsidian-mcp-bridge/
+
+## Current Development Context
+
+### Project State (as of commit 7db2361)
+- ✅ Settings migration system implemented
+- ✅ Enhanced argument UI with add/remove functionality  
+- ✅ Working directory separation from arguments
+- ✅ Dependencies updated to latest versions
+- 🔄 MCP filesystem server connection fix (migration should resolve)
+- 📋 Testing required: plugin reload, settings migration, MCP connections
+
+### Key Files for Current Work
+- src/utils/settings-migration.ts - Version-based migration system
+- src/ui/settings-tab.ts - Enhanced argument UI
+- src/core/mcp-client.ts - MCP connection with working directory support
+- src/types/settings.ts - Settings schema with version tracking
+- styles.css - UI styling for new argument inputs
+
+### Environment Variables
+BRAVE_API_KEY="BSAglXA04C8S1Z1_YpBvwRfl6g_cfx6"
+
+### MCP Server Test Commands
+# Filesystem server (should work after migration)
+npx -y @modelcontextprotocol/server-filesystem /path/to/directory
+
+# Git server (for future)
+npx -y @modelcontextprotocol/server-git /path/to/repo
+
+# Brave search server (API key ready)
+npx -y @modelcontextprotocol/server-brave-search
+
+### Next Testing Steps
+1. Reload plugin in Obsidian to trigger migration
+2. Check console for migration messages
+3. Verify settings UI shows individual argument inputs
+4. Test MCP filesystem server connection
+5. Confirm working directory is set to vault path
+
+### Common Troubleshooting
+# Check if MCP server package exists
+npx -y @modelcontextprotocol/server-filesystem --help
+
+# Test server manually
+npx -y @modelcontextprotocol/server-filesystem ~/Documents
+
+# Check plugin logs in Obsidian developer console
+# Look for "MCP Bridge" prefixed messages
+
+### Build Artifacts
+- main.js - Bundled plugin code
+- manifest.json - Plugin metadata
+- styles.css - Plugin styling
+
+### Security Notes
+- Never commit real API keys
+- Use .env.local for development secrets
+- Run security:scan before all commits
+- Follow develop branch workflow
+
+### Git Workflow Reminders
+# Always work on develop branch
+git checkout develop
+git pull origin develop
+
+# Standard commit flow
+git add .
+git commit -m "feat: description"
+git push origin develop
+
+# For larger features
+git checkout -b feature/feature-name
+# work, commit, push
+git push origin feature/feature-name
+# Create PR to develop branch
+EOF < /dev/null

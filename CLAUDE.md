@@ -188,6 +188,80 @@ When working on this codebase:
 - `.env.example` - Template for environment variables
 - `.gitleaksignore` - Exceptions for secret scanning
 
+## Current Development Status
+
+### Recent Major Achievements (Commit 7db2361)
+
+**✅ Version-Based Settings Migration System**
+- Implemented `SettingsMigration` class for systematic upgrades
+- Added version tracking (`CURRENT_SETTINGS_VERSION = '0.2.0'`)
+- Automatic migration runs on plugin load
+- Migrates legacy args format to new `workingDirectory` field
+
+**✅ Enhanced MCP Server Configuration**
+- Added `workingDirectory` field to `MCPServerConfig`
+- Auto-detects and sets vault path as default directory
+- Fixes MCP filesystem server connection issues
+- Separates directory path from command arguments
+
+**✅ Improved Settings UI**
+- Replaced textarea with individual argument input boxes
+- Dynamic add/remove capabilities for server arguments
+- Real-time auto-save functionality
+- Responsive CSS styling with Obsidian theme integration
+
+**✅ Dependency Updates**
+- Updated esbuild to v0.25.7
+- Updated vitest to v3.2.4
+- Updated coverage tools to latest versions
+- Maintained backward compatibility
+
+### Known Issues Being Addressed
+
+1. **MCP Filesystem Server Connection**
+   - Status: Migration system should resolve this
+   - Next: Test with actual vault path after plugin reload
+   - Files: `src/utils/settings-migration.ts`, `src/core/mcp-client.ts`
+
+2. **Testing Required**
+   - Settings migration functionality
+   - New argument UI in Obsidian settings
+   - MCP server connection with vault path
+
+### Next Development Priorities
+
+1. **Test Migration System**
+   - Reload plugin to verify migration works
+   - Confirm MCP filesystem server connects with vault path
+   - Test add/remove argument functionality
+
+2. **Plugin Installation & Testing**
+   - Copy built plugin to Obsidian vault
+   - Test in real Obsidian environment
+   - Verify MCP server connections
+
+3. **Future Enhancements**
+   - Web search server integration (Brave API ready)
+   - Git repository server configuration
+   - Additional MCP server types
+
+### Architecture Overview (Updated)
+
+**Settings Migration** (`src/utils/settings-migration.ts`):
+- Version-based upgrade system
+- Handles data format changes between versions
+- Preserves user configuration during upgrades
+
+**Enhanced UI** (`src/ui/settings-tab.ts`):
+- Individual argument inputs with add/remove buttons
+- Working directory field separate from arguments
+- CSS styling in `styles.css`
+
+**MCP Client** (`src/core/mcp-client.ts`):
+- Dynamic path resolution via PathResolver
+- Working directory support for servers
+- Improved error handling and logging
+
 ## Important Instruction Reminders
 
 **CRITICAL SECURITY REMINDERS:**
@@ -197,6 +271,13 @@ When working on this codebase:
 - RUN `npm run security:scan` before commits
 - USE `.env.local` for development secrets
 - FOLLOW the git workflow in BRANCHING.md
+
+**DEVELOPMENT WORKFLOW:**
+
+- ALWAYS run `npm run build` before testing changes
+- USE `npm run security:scan` before commits
+- TEST settings migration after any settings schema changes
+- VERIFY MCP server connections after configuration updates
 
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
