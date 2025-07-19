@@ -105,15 +105,22 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           });
       });
 
+    // Arguments section with individual inputs
+    const argsContainer = serverContainer.createDiv({ cls: 'mcp-args-container' });
+    argsContainer.createEl('h4', { text: 'Arguments' });
+    argsContainer.createEl('p', { text: 'Command line arguments for the MCP server', cls: 'setting-item-description' });
+    
+    this.renderArgumentInputs(argsContainer, serverId, config.args || []);
+
     new Setting(serverContainer)
-      .setName('Arguments')
-      .setDesc('Command line arguments (one per line)')
-      .addTextArea(textArea => {
-        textArea
-          .setPlaceholder('-y\\n@modelcontextprotocol/server-filesystem\\n./')
-          .setValue(config.args.join('\\n'))
+      .setName('Working Directory')
+      .setDesc('Directory for the MCP server to operate in (for filesystem servers)')
+      .addText(text => {
+        text
+          .setPlaceholder('Leave empty to use vault directory')
+          .setValue(config.workingDirectory || '')
           .onChange(async (value) => {
-            this.plugin.settings.servers[serverId].args = value.split('\\n').filter(arg => arg.trim());
+            this.plugin.settings.servers[serverId].workingDirectory = value;
             await this.plugin.saveSettings();
           });
       });
@@ -146,6 +153,67 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
             this.display(); // Refresh the settings display
           });
       });
+  }
+
+  private renderArgumentInputs(container: HTMLElement, serverId: string, args: string[]): void {
+    // Clear existing content
+    container.querySelectorAll('.mcp-arg-input').forEach(el => el.remove());
+    
+    const inputsContainer = container.createDiv({ cls: 'mcp-args-inputs' });
+    
+    // Render existing arguments
+    args.forEach((arg, index) => {
+      this.createArgumentInput(inputsContainer, serverId, arg, index);
+    });
+    
+    // Add "Add Argument" button
+    const addButtonContainer = inputsContainer.createDiv({ cls: 'mcp-add-arg-container' });
+    const addButton = addButtonContainer.createEl('button', {
+      text: '+ Add Argument',
+      cls: 'mod-cta mcp-add-arg-btn'
+    });
+    
+    addButton.addEventListener('click', () => {
+      const newArgs = [...(this.plugin.settings.servers[serverId].args || []), ''];
+      this.plugin.settings.servers[serverId].args = newArgs;
+      this.renderArgumentInputs(container, serverId, newArgs);
+    });
+  }
+  
+  private createArgumentInput(container: HTMLElement, serverId: string, value: string, index: number): void {
+    const argDiv = container.createDiv({ cls: 'mcp-arg-input' });
+    
+    const inputContainer = argDiv.createDiv({ cls: 'mcp-arg-input-container' });
+    
+    // Argument input
+    const input = inputContainer.createEl('input', {
+      type: 'text',
+      value: value,
+      placeholder: 'Enter argument...',
+      cls: 'mcp-arg-text-input'
+    });
+    
+    input.addEventListener('input', async () => {
+      this.plugin.settings.servers[serverId].args[index] = input.value;
+      await this.plugin.saveSettings();
+    });
+    
+    // Remove button
+    const removeButton = inputContainer.createEl('button', {
+      text: '×',
+      cls: 'mcp-remove-arg-btn'
+    });
+    
+    removeButton.addEventListener('click', async () => {
+      const args = this.plugin.settings.servers[serverId].args || [];
+      args.splice(index, 1);
+      this.plugin.settings.servers[serverId].args = args;
+      await this.plugin.saveSettings();
+      
+      // Re-render the arguments section
+      const argsContainer = container.closest('.mcp-args-container') as HTMLElement;
+      this.renderArgumentInputs(argsContainer, serverId, args);
+    });
   }
 
   private addKnowledgeDiscoverySection(): void {

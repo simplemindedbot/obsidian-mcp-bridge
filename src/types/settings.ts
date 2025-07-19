@@ -8,6 +8,7 @@ export interface MCPServerConfig {
   retryAttempts?: number;
   type?: 'stdio' | 'websocket' | 'sse';
   url?: string; // For websocket/sse servers
+  workingDirectory?: string; // Working directory for the server
 }
 
 export interface KnowledgeDiscoverySettings {
@@ -47,6 +48,9 @@ export interface LoggingSettings {
 }
 
 export interface MCPBridgeSettings {
+  // Version for data migration
+  version?: string;
+  
   // Server Configuration
   servers: Record<string, MCPServerConfig>;
   defaultTimeout: number;
@@ -73,12 +77,17 @@ export interface MCPBridgeSettings {
   apiKeys: Record<string, string>;
 }
 
+// Current plugin version for migration tracking
+export const CURRENT_SETTINGS_VERSION = '0.2.0';
+
 export const DEFAULT_SETTINGS: MCPBridgeSettings = {
+  version: CURRENT_SETTINGS_VERSION,
   servers: {
     'filesystem': {
       name: 'File System',
       command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-filesystem', './'],
+      args: ['-y', '@modelcontextprotocol/server-filesystem'],
+      workingDirectory: '', // Will be set to vault path at runtime
       enabled: false,
       timeout: 30000,
       retryAttempts: 3,

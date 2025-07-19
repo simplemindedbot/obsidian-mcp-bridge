@@ -6,6 +6,7 @@ import { BridgeInterface } from '@/bridge/bridge-interface';
 import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
 import { initializeLogger, getLogger, LogLevel } from '@/utils/logger';
+import { SettingsMigration } from '@/utils/settings-migration';
 
 export default class MCPBridgePlugin extends Plugin {
   settings!: MCPBridgeSettings;
@@ -109,7 +110,21 @@ export default class MCPBridgePlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const rawSettings = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
+    
+    // Run settings migration if needed
+    const migration = new SettingsMigration(this.app);
+    const migratedSettings = await migration.migrateSettings(this.settings);
+    
+    // If settings were migrated, save them
+    if (migratedSettings.version !== this.settings.version) {
+      this.settings = migratedSettings;
+      await this.saveData(this.settings);
+      console.log('MCP Bridge: Settings migrated and saved successfully');
+    } else {
+      this.settings = migratedSettings;
+    }
   }
 
   async saveSettings() {

@@ -433,12 +433,18 @@ class MCPConnection {
       const resolvedCommand = await PathResolver.resolveCommand(this.config.command);
       logger.debug('MCPConnection', `Resolved command path: ${this.config.command} -> ${resolvedCommand}`);
       
-      console.log(`Connecting via stdio: ${resolvedCommand} ${this.config.args?.join(' ') || ''}`);
+      // Add working directory to args if specified
+      const args = [...(this.config.args || [])];
+      if (this.config.workingDirectory) {
+        args.push(this.config.workingDirectory);
+      }
+      
+      console.log(`Connecting via stdio: ${resolvedCommand} ${args.join(' ')}`);
       
       // Create MCP transport - this handles process spawning internally
       this.transport = new StdioClientTransport({
         command: resolvedCommand,
-        args: this.config.args || [],
+        args: args,
         env: this.config.env || {}
       });
 
