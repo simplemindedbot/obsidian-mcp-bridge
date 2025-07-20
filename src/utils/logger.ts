@@ -8,13 +8,52 @@ export enum LogLevel {
   TRACE = 4,
 }
 
+// Structured metadata interface for better type safety
+export interface LogMetadata {
+  // Performance metrics
+  duration?: number;
+  memoryUsage?: number;
+  
+  // Request/Response data
+  requestId?: string;
+  responseCode?: number;
+  statusCode?: number;
+  
+  // File/Path information
+  filePath?: string;
+  lineNumber?: number;
+  functionName?: string;
+  
+  // MCP-specific data
+  serverId?: string;
+  serverName?: string;
+  toolName?: string;
+  command?: string;
+  
+  // Network/Connection data
+  url?: string;
+  method?: string;
+  headers?: Record<string, string>;
+  
+  // User/Session data
+  userId?: string;
+  sessionId?: string;
+  
+  // Generic key-value pairs for additional context
+  context?: Record<string, unknown>;
+  tags?: string[];
+  
+  // Sensitive data indicators (for redaction)
+  containsSensitiveData?: boolean;
+}
+
 export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   component: string;
   message: string;
   error?: Error;
-  metadata?: any;
+  metadata?: LogMetadata;
 }
 
 export class Logger {
@@ -200,7 +239,7 @@ export class Logger {
     component: string,
     message: string,
     error?: Error,
-    metadata?: any,
+    metadata?: LogMetadata,
   ): LogEntry {
     return {
       timestamp: new Date().toISOString(),
@@ -248,7 +287,7 @@ export class Logger {
     component: string,
     message: string,
     error?: Error,
-    metadata?: any,
+    metadata?: LogMetadata,
   ) {
     if (!this.shouldLog(level)) return;
 
@@ -267,23 +306,23 @@ export class Logger {
     }
   }
 
-  error(component: string, message: string, error?: Error, metadata?: any) {
+  error(component: string, message: string, error?: Error, metadata?: LogMetadata) {
     this.log(LogLevel.ERROR, component, message, error, metadata);
   }
 
-  warn(component: string, message: string, metadata?: any) {
+  warn(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.WARN, component, message, undefined, metadata);
   }
 
-  info(component: string, message: string, metadata?: any) {
+  info(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.INFO, component, message, undefined, metadata);
   }
 
-  debug(component: string, message: string, metadata?: any) {
+  debug(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.DEBUG, component, message, undefined, metadata);
   }
 
-  trace(component: string, message: string, metadata?: any) {
+  trace(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.TRACE, component, message, undefined, metadata);
   }
 
@@ -390,23 +429,23 @@ export function logError(
   component: string,
   message: string,
   error?: Error,
-  metadata?: any,
+  metadata?: LogMetadata,
 ) {
   getLogger().error(component, message, error, metadata);
 }
 
-export function logWarn(component: string, message: string, metadata?: any) {
+export function logWarn(component: string, message: string, metadata?: LogMetadata) {
   getLogger().warn(component, message, metadata);
 }
 
-export function logInfo(component: string, message: string, metadata?: any) {
+export function logInfo(component: string, message: string, metadata?: LogMetadata) {
   getLogger().info(component, message, metadata);
 }
 
-export function logDebug(component: string, message: string, metadata?: any) {
+export function logDebug(component: string, message: string, metadata?: LogMetadata) {
   getLogger().debug(component, message, metadata);
 }
 
-export function logTrace(component: string, message: string, metadata?: any) {
+export function logTrace(component: string, message: string, metadata?: LogMetadata) {
   getLogger().trace(component, message, metadata);
 }

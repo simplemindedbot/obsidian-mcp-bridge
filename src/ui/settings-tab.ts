@@ -1,6 +1,33 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import MCPBridgePlugin from "@/main";
 
+// Type definitions for Electron integration
+interface ElectronShell {
+  openPath(path: string): Promise<string>;
+}
+
+interface ElectronAPI {
+  shell?: ElectronShell;
+}
+
+interface WindowWithElectron extends Window {
+  electron?: ElectronAPI;
+}
+
+// Type guard for checking if plugin has config manager
+function hasConfigManager(plugin: MCPBridgePlugin): plugin is MCPBridgePlugin & { 
+  configManager: { 
+    hasLegacyConfig(): Promise<boolean>; 
+    cleanupLegacyConfig(): Promise<void>; 
+  } 
+} {
+  return 'configManager' in plugin && 
+         typeof plugin.configManager === 'object' && 
+         plugin.configManager !== null &&
+         'hasLegacyConfig' in plugin.configManager &&
+         'cleanupLegacyConfig' in plugin.configManager;
+}
+
 export class MCPBridgeSettingTab extends PluginSettingTab {
   plugin: MCPBridgePlugin;
 
@@ -122,7 +149,8 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           try {
             // Try to open the folder using the system's default file manager
             const configDir = `${this.app.vault.configDir}/plugins/obsidian-mcp-bridge`;
-            await (window as any).electron?.shell?.openPath?.(configDir);
+            const electronWindow = window as WindowWithElectron;
+            await electronWindow.electron?.shell?.openPath?.(configDir);
           } catch (error) {
             new Notice("Could not open folder automatically. Please navigate to: " + configPath);
           }
@@ -143,7 +171,8 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
   }
 
   private async addLegacyConfigSection(): Promise<void> {
-    const hasLegacy = await (this.plugin as any).configManager?.hasLegacyConfig();
+    const hasLegacy = hasConfigManager(this.plugin) ? 
+      await this.plugin.configManager.hasLegacyConfig() : false;
     
     if (hasLegacy) {
       const { containerEl } = this;
@@ -163,7 +192,9 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
         .addButton((button) => {
           button.setButtonText("Clean Up").onClick(async () => {
             try {
-              await (this.plugin as any).configManager?.cleanupLegacyConfig();
+              if (hasConfigManager(this.plugin)) {
+                await this.plugin.configManager.cleanupLegacyConfig();
+              }
               new Notice("Legacy configuration file cleaned up successfully");
               this.display(); // Refresh to hide this section
             } catch (error) {
@@ -248,7 +279,7 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           .addOption("floating", "Floating Window")
           .setValue(this.plugin.settings.chatInterface.chatPosition)
           .onChange(async (value) => {
-            this.plugin.settings.chatInterface.chatPosition = value as any;
+            this.plugin.settings.chatInterface.chatPosition = value as "right" | "left" | "floating";
             await this.plugin.saveSettings();
           });
       });
@@ -293,7 +324,7 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           .addOption("modal", "Show in Modal")
           .setValue(this.plugin.settings.contentProcessing.insertionMode)
           .onChange(async (value) => {
-            this.plugin.settings.contentProcessing.insertionMode = value as any;
+            this.plugin.settings.contentProcessing.insertionMode = value as "cursor" | "end" | "modal";
             await this.plugin.saveSettings();
           });
       });
@@ -340,7 +371,7 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           .addOption("trace", "Trace")
           .setValue(this.plugin.settings.logging.logLevel)
           .onChange(async (value) => {
-            this.plugin.settings.logging.logLevel = value as any;
+            this.plugin.settings.logging.logLevel = value as "error" | "warn" | "info" | "debug" | "trace";
             await this.plugin.saveSettings();
           });
       });

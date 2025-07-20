@@ -157,14 +157,96 @@ export const DEFAULT_SETTINGS: MCPBridgeSettings = {
   apiKeys: {},
 };
 
+// MCP Protocol Response Types
+export interface MCPToolResult {
+  content: Array<{
+    type: "text" | "image" | "resource";
+    text?: string;
+    data?: string;
+    mimeType?: string;
+  }>;
+  isError?: boolean;
+}
+
+export interface MCPResourceResult {
+  uri: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
+  contents: string;
+  content?: Array<{
+    type: "text" | "image" | "resource";
+    text?: string;
+    data?: string;
+    mimeType?: string;
+  }>;
+}
+
+export interface MCPSearchResult {
+  content?: Array<{
+    type: "text" | "image" | "resource";
+    text?: string;
+    data?: string;
+    mimeType?: string;
+  }>;
+  results: Array<{
+    title: string;
+    content: string;
+    uri?: string;
+    relevance?: number;
+  }>;
+}
+
+export interface MCPErrorData {
+  type?: string;
+  details?: string;
+  stack?: string;
+  code?: string;
+}
+
+export type MCPResultData = MCPToolResult | MCPResourceResult | MCPSearchResult | Record<string, unknown>;
+
 export interface MCPResponse {
   id: string;
-  result?: any;
+  result?: MCPResultData;
   error?: {
     code: number;
     message: string;
-    data?: any;
+    data?: MCPErrorData;
   };
+}
+
+export interface KnowledgeItemMetadata {
+  // File-based metadata
+  filePath?: string;
+  path?: string;
+  fileSize?: number;
+  size?: number;
+  lastModified?: Date;
+  modified?: Date;
+  tags?: string[];
+  
+  // Web-based metadata
+  url?: string;
+  domain?: string;
+  author?: string;
+  publishDate?: Date;
+  
+  // MCP server metadata
+  serverId?: string;
+  serverName?: string;
+  toolUsed?: string;
+  
+  // Content metadata
+  wordCount?: number;
+  language?: string;
+  contentType?: string;
+  
+  // Discovery metadata
+  searchQuery?: string;
+  discoveryMethod?: "vault" | "mcp" | "web" | "manual";
+  processingTime?: number;
+  score?: number;
 }
 
 export interface KnowledgeItem {
@@ -174,7 +256,7 @@ export interface KnowledgeItem {
   source: string;
   relevanceScore: number;
   type: "note" | "web" | "code" | "resource";
-  metadata?: Record<string, any>;
+  metadata?: KnowledgeItemMetadata;
 }
 
 export interface ChatMessage {

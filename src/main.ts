@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, Editor } from 'obsidian';
 import { MCPBridgeSettings, DEFAULT_SETTINGS } from '@/types/settings';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
@@ -195,7 +195,7 @@ export default class MCPBridgePlugin extends Plugin {
     }
   }
 
-  private getCurrentContext(editor: any): string {
+  private getCurrentContext(editor: Editor): string {
     const cursor = editor.getCursor();
     const currentLine = editor.getLine(cursor.line);
     const previousLines = [];

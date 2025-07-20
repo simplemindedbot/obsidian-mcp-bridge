@@ -161,7 +161,15 @@ export class BridgeInterface {
         "chat",
         { message: query },
       );
-      return response.result?.content || "No response from server";
+      const content = response.result?.content;
+      if (typeof content === 'string') {
+        return content;
+      } else if (Array.isArray(content)) {
+        return content.map(item => item.text || '').join('\\n');
+      } else if (content && typeof content === 'object') {
+        return JSON.stringify(content);
+      }
+      return "No response from server";
     } catch (error) {
       return `I'm not sure how to help with that. Connected servers: ${connectedServers.join(", ")}`;
     }

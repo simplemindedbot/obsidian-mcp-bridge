@@ -32,12 +32,14 @@ export class PathResolver {
 
     // Check cache first
     if (this.cache.has(command)) {
-      const cachedPath = this.cache.get(command)!;
-      logger.debug(
-        "PathResolver",
-        `Using cached path for ${command}: ${cachedPath}`,
-      );
-      return cachedPath;
+      const cachedPath = this.cache.get(command);
+      if (cachedPath) {
+        logger.debug(
+          "PathResolver",
+          `Using cached path for ${command}: ${cachedPath}`,
+        );
+        return cachedPath;
+      }
     }
 
     logger.debug("PathResolver", `Searching for executable: ${command}`);
@@ -55,7 +57,7 @@ export class PathResolver {
       logger.debug(
         "PathResolver",
         `'which' command failed for ${command}`,
-        error as Error,
+        { command, context: { type: 'which_command_failed' } }
       );
     }
 
@@ -73,7 +75,7 @@ export class PathResolver {
       logger.debug(
         "PathResolver",
         `'whereis' command failed for ${command}`,
-        error as Error,
+        { command, context: { type: 'whereis_command_failed' } }
       );
     }
 
@@ -201,7 +203,7 @@ export class PathResolver {
         logger.debug(
           "PathResolver",
           `Could not get version for ${command}`,
-          error as Error,
+          { command, context: { type: 'version_check_failed' } }
         );
       }
 
@@ -266,10 +268,15 @@ export class PathResolver {
       "PathResolver",
       `Node.js environment verification: ${isValid ? "PASSED" : "FAILED"}`,
       {
-        node: node?.fullPath,
-        npm: npm?.fullPath,
-        npx: npx?.fullPath,
-        issues,
+        context: {
+          nodeFound: node !== null,
+          npmFound: npm !== null,
+          npxFound: npx !== null,
+          nodeVersion: node?.version,
+          npmVersion: npm?.version,
+          npxVersion: npx?.version,
+        },
+        tags: isValid ? ['environment_check_passed'] : ['environment_check_failed'],
       },
     );
 

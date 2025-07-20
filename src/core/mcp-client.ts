@@ -26,6 +26,30 @@ interface ConnectionHealth {
   lastRetryTime?: Date;
 }
 
+// MCP-specific types for better type safety
+export interface MCPToolParameters {
+  [key: string]: string | number | boolean | object | null | undefined;
+}
+
+export interface MCPResource {
+  uri: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
+}
+
+export interface MCPSearchResultItem {
+  title: string;
+  content: string;
+  uri?: string;
+  name?: string;
+  description?: string;
+  relevance?: number;
+  score?: number;
+  source?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export class MCPClient {
   private settings: MCPBridgeSettings;
   private connections: Map<string, MCPConnection> = new Map();
@@ -155,7 +179,7 @@ export class MCPClient {
   async callTool(
     serverId: string,
     toolName: string,
-    parameters?: any,
+    parameters?: MCPToolParameters,
   ): Promise<MCPResponse> {
     const connection = this.connections.get(serverId);
     if (!connection) {
@@ -188,7 +212,7 @@ export class MCPClient {
     }
   }
 
-  async getResources(serverId: string): Promise<any[]> {
+  async getResources(serverId: string): Promise<MCPResource[]> {
     const connection = this.connections.get(serverId);
     if (!connection) {
       throw new Error(`No connection to server: ${serverId}`);
@@ -197,14 +221,14 @@ export class MCPClient {
     return await connection.getResources();
   }
 
-  async searchAcrossServers(query: string): Promise<any[]> {
-    const results: any[] = [];
+  async searchAcrossServers(query: string): Promise<MCPSearchResultItem[]> {
+    const results: MCPSearchResultItem[] = [];
 
     for (const [serverId, connection] of this.connections) {
       try {
         const serverResults = await connection.search(query);
         results.push(
-          ...serverResults.map((result: any) => ({
+          ...serverResults.map((result: MCPSearchResultItem) => ({
             ...result,
             source: serverId,
           })),
@@ -376,7 +400,7 @@ class MCPConnection {
     this.isConnected = false;
   }
 
-  async callTool(toolName: string, parameters?: any): Promise<MCPResponse> {
+  async callTool(toolName: string, parameters?: MCPToolParameters): Promise<MCPResponse> {
     if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
@@ -414,7 +438,7 @@ class MCPConnection {
     }
   }
 
-  async getResources(): Promise<any[]> {
+  async getResources(): Promise<MCPResource[]> {
     if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
@@ -422,7 +446,12 @@ class MCPConnection {
     try {
       // List available resources using the MCP client
       const resources = await this.client.listResources();
-      return resources.resources || [];
+      return (resources.resources || []).map(resource => ({
+        uri: resource.uri,
+        name: resource.name,
+        description: resource.description,
+        mimeType: resource.mimeType,
+      }));
     } catch (error) {
       console.error(
         `Error listing resources on server ${this.serverId}:`,
@@ -432,7 +461,7 @@ class MCPConnection {
     }
   }
 
-  async search(query: string): Promise<any[]> {
+  async search(query: string): Promise<MCPSearchResultItem[]> {
     if (!this.isConnected || !this.client) {
       throw new Error(`Not connected to server: ${this.serverId}`);
     }
@@ -453,18 +482,38 @@ class MCPConnection {
           name: searchTool.name,
           arguments: { query },
         });
-        return Array.isArray(result.content)
+        const searchResults = Array.isArray(result.content)
           ? result.content
           : [result.content];
+        
+        return searchResults.map((item: unknown): MCPSearchResultItem => {
+          const obj = item as Record<string, unknown>;
+          return {
+            title: (obj.title || obj.name || 'Unknown') as string,
+            content: (obj.content || obj.text || '') as string,
+            uri: obj.uri as string | undefined,
+            name: obj.name as string | undefined,
+            description: obj.description as string | undefined,
+            relevance: obj.relevance as number | undefined,
+          };
+        });
       }
 
       // Fallback: search through resources
       const resources = await this.getResources();
-      return resources.filter(
-        (resource) =>
-          resource.name?.toLowerCase().includes(query.toLowerCase()) ||
-          resource.description?.toLowerCase().includes(query.toLowerCase()),
-      );
+      return resources
+        .filter(
+          (resource) =>
+            resource.name?.toLowerCase().includes(query.toLowerCase()) ||
+            resource.description?.toLowerCase().includes(query.toLowerCase()),
+        )
+        .map((resource): MCPSearchResultItem => ({
+          title: resource.name || resource.uri,
+          content: resource.description || '',
+          uri: resource.uri,
+          name: resource.name,
+          description: resource.description,
+        }));
     } catch (error) {
       console.error(`Error searching on server ${this.serverId}:`, error);
       return [];

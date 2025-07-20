@@ -2,6 +2,20 @@
  * Utility functions for error handling and logging
  */
 
+// Enhanced error types for better type safety
+export interface ErrorDetails {
+  code?: string;
+  context?: string;
+  timestamp?: Date;
+  stack?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface EnhancedError extends Error {
+  code?: string;
+  details?: ErrorDetails;
+}
+
 /**
  * Format error for display to user
  */
@@ -30,11 +44,11 @@ export function logError(context: string, error: unknown): void {
 export function createError(
   message: string,
   code?: string,
-  details?: any,
-): Error {
-  const error = new Error(message);
-  (error as any).code = code;
-  (error as any).details = details;
+  details?: ErrorDetails,
+): EnhancedError {
+  const error = new Error(message) as EnhancedError;
+  error.code = code;
+  error.details = details;
   return error;
 }
 
@@ -62,7 +76,7 @@ export async function retryWithBackoff<T>(
   maxRetries: number = 3,
   initialDelay: number = 1000,
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error = new Error('Retry function failed - no attempts made');
 
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -79,13 +93,14 @@ export async function retryWithBackoff<T>(
     }
   }
 
-  throw lastError!;
+  // This should never be reached due to the loop logic, but TypeScript needs explicit handling
+  throw lastError;
 }
 
 /**
  * Safe JSON parse that returns null on error
  */
-export function safeJsonParse(json: string): any {
+export function safeJsonParse(json: string): unknown {
   try {
     return JSON.parse(json);
   } catch {
@@ -94,9 +109,20 @@ export function safeJsonParse(json: string): any {
 }
 
 /**
+ * Type-safe JSON parse with generic return type
+ */
+export function safeJsonParseTyped<T = unknown>(json: string): T | null {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Safe JSON stringify that returns empty string on error
  */
-export function safeJsonStringify(obj: any): string {
+export function safeJsonStringify(obj: unknown): string {
   try {
     return JSON.stringify(obj);
   } catch {

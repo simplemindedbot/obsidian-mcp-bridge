@@ -64,7 +64,7 @@ export class KnowledgeEngine {
             metadata: {
               path: file.path,
               size: file.stat.size,
-              modified: file.stat.mtime,
+              modified: new Date(file.stat.mtime),
             },
           });
         }
