@@ -7,15 +7,20 @@ import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
 import { initializeLogger, getLogger, LogLevel } from '@/utils/logger';
 import { SettingsMigration } from '@/utils/settings-migration';
+import { ConfigManager } from '@/utils/config-manager';
 
 export default class MCPBridgePlugin extends Plugin {
   settings!: MCPBridgeSettings;
   mcpClient!: MCPClient;
   knowledgeEngine!: KnowledgeEngine;
   bridgeInterface!: BridgeInterface;
+  configManager!: ConfigManager;
 
   async onload() {
     console.log('Loading MCP Bridge plugin...');
+
+    // Initialize config manager
+    this.configManager = new ConfigManager(this.app);
 
     // Load settings
     await this.loadSettings();
@@ -109,7 +114,8 @@ export default class MCPBridgePlugin extends Plugin {
   }
 
   async loadSettings() {
-    const rawSettings = await this.loadData();
+    // Load settings using ConfigManager
+    const rawSettings = await this.configManager.loadSettings();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
     
     // Run settings migration if needed
@@ -119,7 +125,7 @@ export default class MCPBridgePlugin extends Plugin {
     // If settings were migrated, save them
     if (migratedSettings.version !== this.settings.version) {
       this.settings = migratedSettings;
-      await this.saveData(this.settings);
+      await this.configManager.saveSettings(this.settings);
       console.log('MCP Bridge: Settings migrated and saved successfully');
     } else {
       this.settings = migratedSettings;
@@ -127,7 +133,7 @@ export default class MCPBridgePlugin extends Plugin {
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    await this.configManager.saveSettings(this.settings);
     
     // Update logger configuration
     const logger = getLogger();

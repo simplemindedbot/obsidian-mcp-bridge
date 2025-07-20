@@ -126,7 +126,15 @@ You should see a message-circle icon appear in the ribbon (left sidebar).
 
 ### Step 2: Configure Your First MCP Server
 
-Here are some example configurations:
+Configure MCP servers by editing the plugin's configuration file directly at:
+
+```bash
+<vault>/.obsidian/plugins/obsidian-mcp-bridge/obsidian-mcp-bridge-config.json
+```
+
+Here are some example configurations to add to the "servers" section:
+
+**Note**: After editing the configuration file, restart Obsidian to apply the changes.
 
 #### Local Filesystem Server
 

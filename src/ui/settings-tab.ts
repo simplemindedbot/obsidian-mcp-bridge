@@ -1,6 +1,5 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import MCPBridgePlugin from "@/main";
-import { MCPServerConfig } from "@/types/settings";
 
 export class MCPBridgeSettingTab extends PluginSettingTab {
   plugin: MCPBridgePlugin;
@@ -17,7 +16,7 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
     containerEl.createEl("h2", { text: "MCP Bridge Settings" });
 
     // Server Configuration Section
-    this.addServerSection();
+    this.addServerInfoSection();
 
     // Knowledge Discovery Section
     this.addKnowledgeDiscoverySection();
@@ -35,209 +34,148 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
     this.addAdvancedSection();
   }
 
-  private addServerSection(): void {
+  private addServerInfoSection(): void {
     const { containerEl } = this;
 
     containerEl.createEl("h3", { text: "MCP Servers" });
     containerEl.createEl("p", {
-      text: "Configure Model Context Protocol servers to connect with various AI services and data sources.",
+      text: "MCP servers are configured via JSON file for maximum flexibility and version control.",
     });
 
-    // Add servers
-    Object.entries(this.plugin.settings.servers).forEach(
-      ([serverId, serverConfig]) => {
-        this.addServerConfig(serverId, serverConfig);
-      },
-    );
+    // Server status display
+    const statusContainer = containerEl.createEl("div", {
+      cls: "mcp-server-status",
+    });
+    
+    const serverCount = Object.keys(this.plugin.settings.servers).length;
+    const enabledCount = Object.values(this.plugin.settings.servers).filter(s => s.enabled).length;
+    
+    statusContainer.createEl("p", {
+      text: `📊 Configured servers: ${serverCount} (${enabledCount} enabled)`,
+      cls: "mcp-server-count",
+    });
 
-    // Add new server button
+    // Configuration instructions
+    const instructionsContainer = containerEl.createEl("div", {
+      cls: "mcp-config-instructions",
+    });
+    
+    instructionsContainer.createEl("h4", { text: "Configuration" });
+    instructionsContainer.createEl("p", {
+      text: "Edit your MCP server configuration by modifying the plugin's configuration file:",
+    });
+    
+    const configPath = `${this.app.vault.configDir}/plugins/obsidian-mcp-bridge/obsidian-mcp-bridge-config.json`;
+    const codeBlock = instructionsContainer.createEl("pre", {
+      cls: "mcp-config-path",
+    });
+    codeBlock.createEl("code", {
+      text: configPath,
+    });
+    
+    // Example configuration
+    const exampleContainer = instructionsContainer.createEl("details", {
+      cls: "mcp-config-example",
+    });
+    exampleContainer.createEl("summary", { text: "📖 Example Configuration" });
+    
+    const exampleCode = exampleContainer.createEl("pre");
+    exampleCode.createEl("code", {
+      text: JSON.stringify({
+        servers: {
+          filesystem: {
+            name: "Local Filesystem",
+            command: "npx",
+            args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/documents"],
+            enabled: true,
+            timeout: 30000,
+            retryAttempts: 3,
+            type: "stdio"
+          },
+          "web-search": {
+            name: "Web Search",
+            command: "npx", 
+            args: ["-y", "@modelcontextprotocol/server-brave-search"],
+            enabled: false,
+            timeout: 30000,
+            retryAttempts: 3,
+            type: "stdio",
+            env: {
+              "BRAVE_API_KEY": "your-api-key-here"
+            }
+          }
+        }
+      }, null, 2),
+    });
+    
+    instructionsContainer.createEl("p", {
+      text: "After editing the configuration, restart Obsidian or reload the plugin to apply changes.",
+      cls: "mcp-config-note",
+    });
+
+    // Quick actions
     new Setting(containerEl)
-      .setName("Add New Server")
-      .setDesc("Add a new MCP server configuration")
+      .setName("Open Configuration Folder")
+      .setDesc("Open the plugin configuration folder in your file manager")
       .addButton((button) => {
-        button.setButtonText("Add Server").onClick(() => {
-          this.addNewServer();
-        });
-      });
-  }
-
-  private addServerConfig(serverId: string, config: MCPServerConfig): void {
-    const { containerEl } = this;
-
-    const serverContainer = containerEl.createEl("div", {
-      cls: "mcp-server-config",
-    });
-    serverContainer.createEl("h4", { text: config.name || serverId });
-
-    new Setting(serverContainer)
-      .setName("Enabled")
-      .setDesc("Enable this MCP server")
-      .addToggle((toggle) => {
-        toggle.setValue(config.enabled).onChange(async (value) => {
-          this.plugin.settings.servers[serverId].enabled = value;
-          await this.plugin.saveSettings();
+        button.setButtonText("Open Folder").onClick(async () => {
+          try {
+            // Try to open the folder using the system's default file manager
+            const configDir = `${this.app.vault.configDir}/plugins/obsidian-mcp-bridge`;
+            await (window as any).electron?.shell?.openPath?.(configDir);
+          } catch (error) {
+            new Notice("Could not open folder automatically. Please navigate to: " + configPath);
+          }
         });
       });
 
-    new Setting(serverContainer)
-      .setName("Name")
-      .setDesc("Display name for this server")
-      .addText((text) => {
-        text
-          .setPlaceholder("Server name")
-          .setValue(config.name)
-          .onChange(async (value) => {
-            this.plugin.settings.servers[serverId].name = value;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(serverContainer)
-      .setName("Command")
-      .setDesc("Command to start the MCP server")
-      .addText((text) => {
-        text
-          .setPlaceholder("npx")
-          .setValue(config.command)
-          .onChange(async (value) => {
-            this.plugin.settings.servers[serverId].command = value;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    // Arguments section with individual inputs
-    const argsContainer = serverContainer.createDiv({
-      cls: "mcp-args-container",
-    });
-    argsContainer.createEl("h4", { text: "Arguments" });
-    argsContainer.createEl("p", {
-      text: "Command line arguments for the MCP server",
-      cls: "setting-item-description",
-    });
-
-    this.renderArgumentInputs(argsContainer, serverId, config.args || []);
-
-    new Setting(serverContainer)
-      .setName("Working Directory")
-      .setDesc(
-        "Directory for the MCP server to operate in (for filesystem servers)",
-      )
-      .addText((text) => {
-        text
-          .setPlaceholder("Leave empty to use vault directory")
-          .setValue(config.workingDirectory || "")
-          .onChange(async (value) => {
-            this.plugin.settings.servers[serverId].workingDirectory = value;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(serverContainer)
-      .setName("Connection Type")
-      .setDesc("Type of connection to use")
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption("stdio", "STDIO")
-          .addOption("websocket", "WebSocket")
-          .addOption("sse", "Server-Sent Events")
-          .setValue(config.type || "stdio")
-          .onChange(async (value) => {
-            this.plugin.settings.servers[serverId].type = value as any;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(serverContainer)
-      .setName("Remove Server")
-      .setDesc("Remove this server configuration")
+    new Setting(containerEl)
+      .setName("Reload Plugin")
+      .setDesc("Reload the plugin to apply configuration changes")
       .addButton((button) => {
-        button
-          .setButtonText("Remove")
-          .setWarning()
-          .onClick(async () => {
-            delete this.plugin.settings.servers[serverId];
-            await this.plugin.saveSettings();
-            this.display(); // Refresh the settings display
-          });
+        button.setButtonText("Reload").onClick(async () => {
+          new Notice("Please use Ctrl/Cmd+R to reload Obsidian and apply changes");
+        });
       });
+
+    // Check for legacy config file
+    this.addLegacyConfigSection();
   }
 
-  private renderArgumentInputs(
-    container: HTMLElement,
-    serverId: string,
-    args: string[],
-  ): void {
-    // Clear existing content
-    container.querySelectorAll(".mcp-arg-input").forEach((el) => el.remove());
-
-    const inputsContainer = container.createDiv({ cls: "mcp-args-inputs" });
-
-    // Render existing arguments
-    args.forEach((arg, index) => {
-      this.createArgumentInput(inputsContainer, serverId, arg, index);
-    });
-
-    // Add "Add Argument" button
-    const addButtonContainer = inputsContainer.createDiv({
-      cls: "mcp-add-arg-container",
-    });
-    const addButton = addButtonContainer.createEl("button", {
-      text: "+ Add Argument",
-      cls: "mod-cta mcp-add-arg-btn",
-    });
-
-    addButton.addEventListener("click", () => {
-      const newArgs = [
-        ...(this.plugin.settings.servers[serverId].args || []),
-        "",
-      ];
-      this.plugin.settings.servers[serverId].args = newArgs;
-      this.renderArgumentInputs(container, serverId, newArgs);
-    });
+  private async addLegacyConfigSection(): Promise<void> {
+    const hasLegacy = await (this.plugin as any).configManager?.hasLegacyConfig();
+    
+    if (hasLegacy) {
+      const { containerEl } = this;
+      
+      const legacyContainer = containerEl.createEl("div", {
+        cls: "mcp-legacy-config",
+      });
+      
+      legacyContainer.createEl("h4", { text: "⚠️ Legacy Configuration Detected" });
+      legacyContainer.createEl("p", {
+        text: "An old data.json configuration file was found. The plugin has migrated your settings to the new configuration file format.",
+      });
+      
+      new Setting(legacyContainer)
+        .setName("Clean Up Legacy File")
+        .setDesc("Remove the old data.json file (it will be backed up as data.json.backup)")
+        .addButton((button) => {
+          button.setButtonText("Clean Up").onClick(async () => {
+            try {
+              await (this.plugin as any).configManager?.cleanupLegacyConfig();
+              new Notice("Legacy configuration file cleaned up successfully");
+              this.display(); // Refresh to hide this section
+            } catch (error) {
+              new Notice("Error cleaning up legacy file: " + (error as Error).message);
+            }
+          });
+        });
+    }
   }
 
-  private createArgumentInput(
-    container: HTMLElement,
-    serverId: string,
-    value: string,
-    index: number,
-  ): void {
-    const argDiv = container.createDiv({ cls: "mcp-arg-input" });
 
-    const inputContainer = argDiv.createDiv({ cls: "mcp-arg-input-container" });
 
-    // Argument input
-    const input = inputContainer.createEl("input", {
-      type: "text",
-      value: value,
-      placeholder: "Enter argument...",
-      cls: "mcp-arg-text-input",
-    });
-
-    input.addEventListener("input", async () => {
-      this.plugin.settings.servers[serverId].args[index] = input.value;
-      await this.plugin.saveSettings();
-    });
-
-    // Remove button
-    const removeButton = inputContainer.createEl("button", {
-      text: "×",
-      cls: "mcp-remove-arg-btn",
-    });
-
-    removeButton.addEventListener("click", async () => {
-      const args = this.plugin.settings.servers[serverId].args || [];
-      args.splice(index, 1);
-      this.plugin.settings.servers[serverId].args = args;
-      await this.plugin.saveSettings();
-
-      // Re-render the arguments section
-      const argsContainer = container.closest(
-        ".mcp-args-container",
-      ) as HTMLElement;
-      this.renderArgumentInputs(argsContainer, serverId, args);
-    });
-  }
 
   private addKnowledgeDiscoverySection(): void {
     const { containerEl } = this;
@@ -492,18 +430,4 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
       });
   }
 
-  private addNewServer(): void {
-    const serverId = `server-${Date.now()}`;
-    this.plugin.settings.servers[serverId] = {
-      name: "New Server",
-      command: "npx",
-      args: [],
-      enabled: false,
-      type: "stdio",
-    };
-
-    this.plugin.saveSettings().then(() => {
-      this.display(); // Refresh the settings display
-    });
-  }
 }

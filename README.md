@@ -44,34 +44,45 @@
 
 ### 1. Configure MCP Servers
 
-The plugin supports multiple connection types for different MCP servers:
+Configure MCP servers by editing the plugin's JSON configuration file directly. This approach provides maximum flexibility and allows for version control of your configurations.
 
-#### **STDIO Servers** (Local processes)
+#### **Configuration File Location**
+
+Edit the plugin's configuration file at:
+
+```bash
+<vault>/.obsidian/plugins/obsidian-mcp-bridge/obsidian-mcp-bridge-config.json
+```
+
+#### **Example Configuration**
 
 ```json
 {
   "servers": {
     "filesystem": {
       "enabled": true,
-      "name": "Local Filesystem",
+      "name": "Local Filesystem", 
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/documents"],
-      "timeout": 10000,
+      "timeout": 30000,
       "retryAttempts": 3
-    }
-  }
-}
-```
-
-#### **WebSocket Servers** (Remote services)
-
-```json
-{
-  "servers": {
-    "remote-ai": {
-      "enabled": true,
-      "name": "Remote AI Service",
+    },
+    "web-search": {
+      "enabled": false,
+      "name": "Web Search",
+      "type": "stdio", 
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "env": {
+        "BRAVE_API_KEY": "your-api-key-here"
+      }
+    },
+    "remote-service": {
+      "enabled": false,
+      "name": "Remote WebSocket Service",
       "type": "websocket",
       "url": "ws://localhost:8080/mcp",
       "timeout": 15000,
@@ -81,22 +92,11 @@ The plugin supports multiple connection types for different MCP servers:
 }
 ```
 
-#### **SSE Servers** (HTTP-based)
+#### **Server Types Supported**
 
-```json
-{
-  "servers": {
-    "web-api": {
-      "enabled": true,
-      "name": "Web API Server",
-      "type": "sse",
-      "url": "https://api.example.com/mcp",
-      "timeout": 20000,
-      "retryAttempts": 3
-    }
-  }
-}
-```
+- **stdio**: Local processes (filesystem, git, databases)
+- **websocket**: Remote services with persistent connections  
+- **sse**: HTTP-based servers with event streaming
 
 ### 2. Start Using
 

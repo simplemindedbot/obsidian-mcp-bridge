@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MCPClient } from '@/core/mcp-client';
 import { MCPBridgeSettings } from '@/types/settings';
+import { initializeLogger } from '@/utils/logger';
+
+// Mock app for logger
+const mockApp = {
+  vault: {
+    configDir: '/tmp/test-config'
+  }
+} as any;
 
 // Mock the MCP SDK
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
@@ -24,6 +32,9 @@ describe('MCPClient', () => {
   let mockSettings: MCPBridgeSettings;
 
   beforeEach(() => {
+    // Initialize logger for tests
+    initializeLogger(mockApp);
+    
     mockSettings = {
       servers: {
         'test-server': {

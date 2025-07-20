@@ -27,7 +27,7 @@ export class Logger {
   private maxLogFiles: number = 5;
   private logBuffer: LogEntry[] = [];
   private bufferFlushInterval: number = 5000; // 5 seconds
-  private flushTimer?: number;
+  private flushTimer?: ReturnType<typeof setInterval>;
 
   constructor(app: App) {
     this.app = app;
