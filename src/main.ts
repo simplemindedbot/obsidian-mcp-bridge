@@ -15,6 +15,7 @@ export default class MCPBridgePlugin extends Plugin {
   knowledgeEngine!: KnowledgeEngine;
   bridgeInterface!: BridgeInterface;
   configManager!: ConfigManager;
+  private loggerInitialized = false;
 
   async onload() {
     console.log('Loading MCP Bridge plugin...');
@@ -27,6 +28,7 @@ export default class MCPBridgePlugin extends Plugin {
 
     // Initialize logger
     const logger = initializeLogger(this.app);
+    this.loggerInitialized = true;
     logger.configure({
       enableFileLogging: this.settings.logging.enableFileLogging,
       enableConsoleLogging: this.settings.logging.enableConsoleLogging,
@@ -98,8 +100,20 @@ export default class MCPBridgePlugin extends Plugin {
   async onunload() {
     console.log('Unloading MCP Bridge plugin...');
     
-    const logger = getLogger();
-    logger.info('Plugin', 'MCP Bridge plugin unloading...');
+    // Safe logger access - only use if initialized
+    if (this.loggerInitialized) {
+      try {
+        const logger = getLogger();
+        logger.info('Plugin', 'MCP Bridge plugin unloading...');
+        
+        // Cleanup logger
+        logger.destroy();
+      } catch (error) {
+        console.log('MCP Bridge: Logger cleanup failed:', error);
+      }
+    } else {
+      console.log('MCP Bridge: Plugin unloading (logger not available)');
+    }
     
     // Cleanup connections
     if (this.mcpClient) {
@@ -108,9 +122,6 @@ export default class MCPBridgePlugin extends Plugin {
 
     // Detach views
     this.app.workspace.detachLeavesOfType(CHAT_VIEW_TYPE);
-    
-    // Cleanup logger
-    logger.destroy();
   }
 
   async loadSettings() {
@@ -135,15 +146,21 @@ export default class MCPBridgePlugin extends Plugin {
   async saveSettings() {
     await this.configManager.saveSettings(this.settings);
     
-    // Update logger configuration
-    const logger = getLogger();
-    logger.configure({
-      enableFileLogging: this.settings.logging.enableFileLogging,
-      enableConsoleLogging: this.settings.logging.enableConsoleLogging,
-      logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
-      logFilePath: this.settings.logging.logFilePath,
-      maxLogFileSize: this.settings.logging.maxLogFileSize
-    });
+    // Update logger configuration (only if initialized)
+    if (this.loggerInitialized) {
+      try {
+        const logger = getLogger();
+        logger.configure({
+          enableFileLogging: this.settings.logging.enableFileLogging,
+          enableConsoleLogging: this.settings.logging.enableConsoleLogging,
+          logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
+          logFilePath: this.settings.logging.logFilePath,
+          maxLogFileSize: this.settings.logging.maxLogFileSize
+        });
+      } catch (error) {
+        console.log('MCP Bridge: Failed to update logger configuration:', error);
+      }
+    }
     
     // Reinitialize connections if settings changed
     if (this.mcpClient) {
