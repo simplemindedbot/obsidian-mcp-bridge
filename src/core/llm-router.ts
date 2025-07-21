@@ -1,4 +1,5 @@
 import { getLogger } from '@/utils/logger';
+import { requestUrl, RequestUrlParam } from 'obsidian';
 
 /**
  * Represents a discovered MCP tool with its capabilities
@@ -41,7 +42,7 @@ export interface QueryRoutingPlan {
  * Configuration for LLM providers
  */
 export interface LLMProviderConfig {
-  provider: 'openai' | 'anthropic' | 'local';
+  provider: 'openai' | 'anthropic' | 'openai-compatible' | 'local';
   apiKey?: string;
   model: string;
   baseUrl?: string;
@@ -183,6 +184,8 @@ Respond with only valid JSON.`;
     switch (this.llmConfig.provider) {
       case 'openai':
         return this.callOpenAI(prompt);
+      case 'openai-compatible':
+        return this.callOpenAICompatible(prompt);
       case 'anthropic':
         return this.callAnthropic(prompt);
       case 'local':
@@ -193,14 +196,15 @@ Respond with only valid JSON.`;
   }
 
   /**
-   * Call OpenAI API
+   * Call OpenAI API using Obsidian's requestUrl to bypass CORS
    */
   private async callOpenAI(prompt: string): Promise<string> {
     if (!this.llmConfig.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const requestData: RequestUrlParam = {
+      url: 'https://api.openai.com/v1/chat/completions',
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.llmConfig.apiKey}`,
@@ -212,25 +216,71 @@ Respond with only valid JSON.`;
         max_tokens: this.llmConfig.maxTokens || 1000,
         temperature: this.llmConfig.temperature || 0.1,
       }),
-    });
+    };
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    const response = await requestUrl(requestData);
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OpenAI API error: ${response.status} ${response.text}`);
     }
 
-    const data = await response.json();
+    const data = response.json;
     return data.choices[0]?.message?.content || '';
   }
 
   /**
-   * Call Anthropic API
+   * Call OpenAI-compatible API (OpenRouter, local servers, etc.) using custom baseUrl
+   */
+  private async callOpenAICompatible(prompt: string): Promise<string> {
+    if (!this.llmConfig.apiKey) {
+      throw new Error('API key not configured for OpenAI-compatible service');
+    }
+
+    if (!this.llmConfig.baseUrl) {
+      throw new Error('Base URL must be configured for OpenAI-compatible services');
+    }
+
+    // Ensure baseUrl ends with the correct path
+    let apiUrl = this.llmConfig.baseUrl;
+    if (!apiUrl.endsWith('/chat/completions')) {
+      apiUrl = apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
+    }
+
+    const requestData: RequestUrlParam = {
+      url: apiUrl,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.llmConfig.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.llmConfig.model || 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: this.llmConfig.maxTokens || 1000,
+        temperature: this.llmConfig.temperature || 0.1,
+      }),
+    };
+
+    const response = await requestUrl(requestData);
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OpenAI-compatible API error: ${response.status} ${response.text}`);
+    }
+
+    const data = response.json;
+    return data.choices[0]?.message?.content || '';
+  }
+
+  /**
+   * Call Anthropic API using Obsidian's requestUrl to bypass CORS
    */
   private async callAnthropic(prompt: string): Promise<string> {
     if (!this.llmConfig.apiKey) {
       throw new Error('Anthropic API key not configured');
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const requestData: RequestUrlParam = {
+      url: 'https://api.anthropic.com/v1/messages',
       method: 'POST',
       headers: {
         'x-api-key': this.llmConfig.apiKey,
@@ -243,13 +293,15 @@ Respond with only valid JSON.`;
         messages: [{ role: 'user', content: prompt }],
         temperature: this.llmConfig.temperature || 0.1,
       }),
-    });
+    };
 
-    if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
+    const response = await requestUrl(requestData);
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Anthropic API error: ${response.status} ${response.text}`);
     }
 
-    const data = await response.json();
+    const data = response.json;
     return data.content[0]?.text || '';
   }
 

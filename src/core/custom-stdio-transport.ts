@@ -50,7 +50,11 @@ export class CustomStdioTransport {
       });
 
       this.process.on('exit', (code, signal) => {
-        this.logger.info('CustomStdioTransport', `Process exited with code ${code}, signal ${signal}`);
+        if (signal === 'SIGTERM') {
+          this.logger.debug('CustomStdioTransport', `Process terminated gracefully (${signal})`);
+        } else {
+          this.logger.info('CustomStdioTransport', `Process exited with code ${code}, signal ${signal}`);
+        }
         this.connected = false;
       });
 
@@ -234,12 +238,22 @@ export class CustomStdioTransport {
 
   async disconnect(): Promise<void> {
     if (this.process) {
-      this.process.kill();
+      // Gracefully terminate the process
+      this.process.kill('SIGTERM');
+      
+      // Give process time to exit gracefully, then force kill if needed
+      setTimeout(() => {
+        if (this.process && !this.process.killed) {
+          this.logger.debug('CustomStdioTransport', 'Force killing unresponsive process');
+          this.process.kill('SIGKILL');
+        }
+      }, 2000);
+      
       this.process = null;
     }
     this.connected = false;
     this.pendingRequests.clear();
-    this.logger.info('CustomStdioTransport', 'Disconnected');
+    this.logger.debug('CustomStdioTransport', 'Disconnected');
   }
 
   isConnected(): boolean {

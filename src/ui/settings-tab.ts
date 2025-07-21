@@ -464,11 +464,12 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
           dropdown
             .addOption("disabled", "Disabled")
             .addOption("openai", "OpenAI")
+            .addOption("openai-compatible", "OpenAI Compatible (OpenRouter, etc.)")
             .addOption("anthropic", "Anthropic")
             .addOption("local", "Local (coming soon)")
             .setValue(this.plugin.settings.llm.provider)
             .onChange(async (value) => {
-              this.plugin.settings.llm.provider = value as "openai" | "anthropic" | "local" | "disabled";
+              this.plugin.settings.llm.provider = value as "openai" | "anthropic" | "openai-compatible" | "local" | "disabled";
               await this.plugin.saveSettings();
               this.display(); // Refresh to show provider-specific settings
             }),
@@ -492,12 +493,14 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
 
         // API Key
         if (this.plugin.settings.llm.provider !== "local") {
+          const keyPlaceholder = this.plugin.settings.llm.provider === "openai-compatible" ? 
+            "sk-or-... (OpenRouter) or provider-specific key" : "sk-...";
           new Setting(containerEl)
             .setName("API Key")
-            .setDesc(`Enter your ${this.plugin.settings.llm.provider} API key`)
+            .setDesc(`Enter your ${this.plugin.settings.llm.provider === "openai-compatible" ? "OpenAI-compatible service" : this.plugin.settings.llm.provider} API key`)
             .addText((text) =>
               text
-                .setPlaceholder("sk-...")
+                .setPlaceholder(keyPlaceholder)
                 .setValue(this.plugin.settings.apiKeys[this.plugin.settings.llm.provider] || "")
                 .onChange(async (value) => {
                   this.plugin.settings.apiKeys[this.plugin.settings.llm.provider] = value;
@@ -506,14 +509,17 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
             );
         }
 
-        // Base URL (for local/custom endpoints)
-        if (this.plugin.settings.llm.provider === "local") {
+        // Base URL (for local/custom endpoints and OpenAI-compatible services)
+        if (this.plugin.settings.llm.provider === "local" || this.plugin.settings.llm.provider === "openai-compatible") {
+          const isOpenRouter = this.plugin.settings.llm.provider === "openai-compatible";
           new Setting(containerEl)
             .setName("Base URL")
-            .setDesc("URL for local LLM API endpoint")
+            .setDesc(isOpenRouter ? 
+              "API endpoint URL (e.g., https://openrouter.ai/api/v1 for OpenRouter)" : 
+              "URL for local LLM API endpoint")
             .addText((text) =>
               text
-                .setPlaceholder("http://localhost:11434")
+                .setPlaceholder(isOpenRouter ? "https://openrouter.ai/api/v1" : "http://localhost:11434")
                 .setValue(this.plugin.settings.llm.baseUrl || "")
                 .onChange(async (value) => {
                   this.plugin.settings.llm.baseUrl = value;
@@ -570,6 +576,7 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
   private getDefaultModel(provider: string): string {
     switch (provider) {
       case "openai": return "gpt-4";
+      case "openai-compatible": return "gpt-3.5-turbo";
       case "anthropic": return "claude-3-sonnet-20240229";
       case "local": return "llama2";
       default: return "gpt-4";

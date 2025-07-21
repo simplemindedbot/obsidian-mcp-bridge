@@ -49,7 +49,7 @@ export interface LoggingSettings {
 
 export interface LLMSettings {
   enableIntelligentRouting: boolean;
-  provider: "openai" | "anthropic" | "local" | "disabled";
+  provider: "openai" | "anthropic" | "openai-compatible" | "local" | "disabled";
   model: string;
   baseUrl?: string;
   maxTokens: number;
