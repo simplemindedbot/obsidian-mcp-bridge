@@ -1,11 +1,50 @@
-import { App, TFile } from 'obsidian';
+import { App } from "obsidian";
 
 export enum LogLevel {
   ERROR = 0,
   WARN = 1,
   INFO = 2,
   DEBUG = 3,
-  TRACE = 4
+  TRACE = 4,
+}
+
+// Structured metadata interface for better type safety
+export interface LogMetadata {
+  // Performance metrics
+  duration?: number;
+  memoryUsage?: number;
+  
+  // Request/Response data
+  requestId?: string;
+  responseCode?: number;
+  statusCode?: number;
+  
+  // File/Path information
+  filePath?: string;
+  lineNumber?: number;
+  functionName?: string;
+  
+  // MCP-specific data
+  serverId?: string;
+  serverName?: string;
+  toolName?: string;
+  command?: string;
+  
+  // Network/Connection data
+  url?: string;
+  method?: string;
+  headers?: Record<string, string>;
+  
+  // User/Session data
+  userId?: string;
+  sessionId?: string;
+  
+  // Generic key-value pairs for additional context
+  context?: Record<string, unknown>;
+  tags?: string[];
+  
+  // Sensitive data indicators (for redaction)
+  containsSensitiveData?: boolean;
 }
 
 export interface LogEntry {
@@ -14,7 +53,7 @@ export interface LogEntry {
   component: string;
   message: string;
   error?: Error;
-  metadata?: any;
+  metadata?: LogMetadata;
 }
 
 export class Logger {
@@ -27,7 +66,7 @@ export class Logger {
   private maxLogFiles: number = 5;
   private logBuffer: LogEntry[] = [];
   private bufferFlushInterval: number = 5000; // 5 seconds
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: ReturnType<typeof setInterval>;
 
   constructor(app: App) {
     this.app = app;
@@ -42,8 +81,10 @@ export class Logger {
     logFilePath?: string;
     maxLogFileSize?: number;
   }) {
-    this.enableFileLogging = settings.enableFileLogging ?? this.enableFileLogging;
-    this.enableConsoleLogging = settings.enableConsoleLogging ?? this.enableConsoleLogging;
+    this.enableFileLogging =
+      settings.enableFileLogging ?? this.enableFileLogging;
+    this.enableConsoleLogging =
+      settings.enableConsoleLogging ?? this.enableConsoleLogging;
     this.logLevel = settings.logLevel ?? this.logLevel;
     this.logFilePath = settings.logFilePath ?? this.logFilePath;
     this.maxLogFileSize = settings.maxLogFileSize ?? this.maxLogFileSize;
@@ -66,15 +107,18 @@ export class Logger {
     try {
       await this.writeToFile(entries);
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to write to log file:', error);
+      console.error("MCP Bridge Logger: Failed to write to log file:", error);
       // Re-add entries to buffer for retry
       this.logBuffer.unshift(...entries);
     }
   }
 
   private async writeToFile(entries: LogEntry[]) {
-    const logDir = this.logFilePath.substring(0, this.logFilePath.lastIndexOf('/'));
-    
+    const logDir = this.logFilePath.substring(
+      0,
+      this.logFilePath.lastIndexOf("/"),
+    );
+
     // Ensure log directory exists
     try {
       await this.app.vault.adapter.mkdir(logDir);
@@ -86,22 +130,28 @@ export class Logger {
     await this.rotateLogsIfNeeded();
 
     // Format log entries
-    const logLines = entries.map(entry => this.formatLogEntry(entry)).join('\n') + '\n';
+    const logLines =
+      entries.map((entry) => this.formatLogEntry(entry)).join("\n") + "\n";
 
     try {
       // Check if file exists
       const exists = await this.app.vault.adapter.exists(this.logFilePath);
-      
+
       if (exists) {
         // Append to existing file
-        const currentContent = await this.app.vault.adapter.read(this.logFilePath);
-        await this.app.vault.adapter.write(this.logFilePath, currentContent + logLines);
+        const currentContent = await this.app.vault.adapter.read(
+          this.logFilePath,
+        );
+        await this.app.vault.adapter.write(
+          this.logFilePath,
+          currentContent + logLines,
+        );
       } else {
         // Create new file
         await this.app.vault.adapter.write(this.logFilePath, logLines);
       }
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to write log entries:', error);
+      console.error("MCP Bridge Logger: Failed to write log entries:", error);
       throw error;
     }
   }
@@ -116,21 +166,26 @@ export class Logger {
         await this.rotateLogs();
       }
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to check log file size:', error);
+      console.error("MCP Bridge Logger: Failed to check log file size:", error);
     }
   }
 
   private async rotateLogs() {
-    const logDir = this.logFilePath.substring(0, this.logFilePath.lastIndexOf('/'));
-    const logFileName = this.logFilePath.substring(this.logFilePath.lastIndexOf('/') + 1);
-    const baseName = logFileName.replace('.log', '');
+    const logDir = this.logFilePath.substring(
+      0,
+      this.logFilePath.lastIndexOf("/"),
+    );
+    const logFileName = this.logFilePath.substring(
+      this.logFilePath.lastIndexOf("/") + 1,
+    );
+    const baseName = logFileName.replace(".log", "");
 
     try {
       // Rotate existing log files
       for (let i = this.maxLogFiles - 1; i >= 1; i--) {
         const oldFile = `${logDir}/${baseName}.${i}.log`;
         const newFile = `${logDir}/${baseName}.${i + 1}.log`;
-        
+
         const exists = await this.app.vault.adapter.exists(oldFile);
         if (exists) {
           if (i === this.maxLogFiles - 1) {
@@ -146,42 +201,53 @@ export class Logger {
       }
 
       // Move current log to .1
-      const currentContent = await this.app.vault.adapter.read(this.logFilePath);
-      await this.app.vault.adapter.write(`${logDir}/${baseName}.1.log`, currentContent);
+      const currentContent = await this.app.vault.adapter.read(
+        this.logFilePath,
+      );
+      await this.app.vault.adapter.write(
+        `${logDir}/${baseName}.1.log`,
+        currentContent,
+      );
       await this.app.vault.adapter.remove(this.logFilePath);
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to rotate logs:', error);
+      console.error("MCP Bridge Logger: Failed to rotate logs:", error);
     }
   }
 
   private formatLogEntry(entry: LogEntry): string {
     const levelStr = LogLevel[entry.level].padEnd(5);
     const component = entry.component.padEnd(15);
-    
+
     let formatted = `[${entry.timestamp}] ${levelStr} ${component} ${entry.message}`;
-    
+
     if (entry.error) {
       formatted += `\n  Error: ${entry.error.message}`;
       if (entry.error.stack) {
         formatted += `\n  Stack: ${entry.error.stack}`;
       }
     }
-    
+
     if (entry.metadata) {
       formatted += `\n  Metadata: ${JSON.stringify(entry.metadata, null, 2)}`;
     }
-    
+
     return formatted;
   }
 
-  private createLogEntry(level: LogLevel, component: string, message: string, error?: Error, metadata?: any): LogEntry {
+  private createLogEntry(
+    level: LogLevel,
+    component: string,
+    message: string,
+    error?: Error,
+    metadata?: LogMetadata,
+  ): LogEntry {
     return {
       timestamp: new Date().toISOString(),
       level,
       component,
       message,
       error,
-      metadata
+      metadata,
     };
   }
 
@@ -197,7 +263,7 @@ export class Logger {
 
     switch (entry.level) {
       case LogLevel.ERROR:
-        console.error(message, entry.error || '');
+        console.error(message, entry.error || "");
         break;
       case LogLevel.WARN:
         console.warn(message);
@@ -216,47 +282,59 @@ export class Logger {
     }
   }
 
-  private log(level: LogLevel, component: string, message: string, error?: Error, metadata?: any) {
+  private log(
+    level: LogLevel,
+    component: string,
+    message: string,
+    error?: Error,
+    metadata?: LogMetadata,
+  ) {
     if (!this.shouldLog(level)) return;
 
-    const entry = this.createLogEntry(level, component, message, error, metadata);
-    
+    const entry = this.createLogEntry(
+      level,
+      component,
+      message,
+      error,
+      metadata,
+    );
+
     this.logToConsole(entry);
-    
+
     if (this.enableFileLogging) {
       this.logBuffer.push(entry);
     }
   }
 
-  error(component: string, message: string, error?: Error, metadata?: any) {
+  error(component: string, message: string, error?: Error, metadata?: LogMetadata) {
     this.log(LogLevel.ERROR, component, message, error, metadata);
   }
 
-  warn(component: string, message: string, metadata?: any) {
+  warn(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.WARN, component, message, undefined, metadata);
   }
 
-  info(component: string, message: string, metadata?: any) {
+  info(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.INFO, component, message, undefined, metadata);
   }
 
-  debug(component: string, message: string, metadata?: any) {
+  debug(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.DEBUG, component, message, undefined, metadata);
   }
 
-  trace(component: string, message: string, metadata?: any) {
+  trace(component: string, message: string, metadata?: LogMetadata) {
     this.log(LogLevel.TRACE, component, message, undefined, metadata);
   }
 
   async getLogContents(): Promise<string> {
     try {
       const exists = await this.app.vault.adapter.exists(this.logFilePath);
-      if (!exists) return '';
-      
+      if (!exists) return "";
+
       return await this.app.vault.adapter.read(this.logFilePath);
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to read log file:', error);
-      return '';
+      console.error("MCP Bridge Logger: Failed to read log file:", error);
+      return "";
     }
   }
 
@@ -266,12 +344,17 @@ export class Logger {
       if (exists) {
         await this.app.vault.adapter.remove(this.logFilePath);
       }
-      
+
       // Clear rotated logs too
-      const logDir = this.logFilePath.substring(0, this.logFilePath.lastIndexOf('/'));
-      const logFileName = this.logFilePath.substring(this.logFilePath.lastIndexOf('/') + 1);
-      const baseName = logFileName.replace('.log', '');
-      
+      const logDir = this.logFilePath.substring(
+        0,
+        this.logFilePath.lastIndexOf("/"),
+      );
+      const logFileName = this.logFilePath.substring(
+        this.logFilePath.lastIndexOf("/") + 1,
+      );
+      const baseName = logFileName.replace(".log", "");
+
       for (let i = 1; i <= this.maxLogFiles; i++) {
         const rotatedFile = `${logDir}/${baseName}.${i}.log`;
         const exists = await this.app.vault.adapter.exists(rotatedFile);
@@ -280,24 +363,29 @@ export class Logger {
         }
       }
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to clear logs:', error);
+      console.error("MCP Bridge Logger: Failed to clear logs:", error);
     }
   }
 
   async getLogFiles(): Promise<string[]> {
-    const logDir = this.logFilePath.substring(0, this.logFilePath.lastIndexOf('/'));
-    const logFileName = this.logFilePath.substring(this.logFilePath.lastIndexOf('/') + 1);
-    const baseName = logFileName.replace('.log', '');
-    
+    const logDir = this.logFilePath.substring(
+      0,
+      this.logFilePath.lastIndexOf("/"),
+    );
+    const logFileName = this.logFilePath.substring(
+      this.logFilePath.lastIndexOf("/") + 1,
+    );
+    const baseName = logFileName.replace(".log", "");
+
     const files: string[] = [];
-    
+
     try {
       // Check main log file
       const mainExists = await this.app.vault.adapter.exists(this.logFilePath);
       if (mainExists) {
         files.push(this.logFilePath);
       }
-      
+
       // Check rotated log files
       for (let i = 1; i <= this.maxLogFiles; i++) {
         const rotatedFile = `${logDir}/${baseName}.${i}.log`;
@@ -307,9 +395,9 @@ export class Logger {
         }
       }
     } catch (error) {
-      console.error('MCP Bridge Logger: Failed to get log files:', error);
+      console.error("MCP Bridge Logger: Failed to get log files:", error);
     }
-    
+
     return files;
   }
 
@@ -331,28 +419,33 @@ export function initializeLogger(app: App): Logger {
 
 export function getLogger(): Logger {
   if (!globalLogger) {
-    throw new Error('Logger not initialized. Call initializeLogger() first.');
+    throw new Error("Logger not initialized. Call initializeLogger() first.");
   }
   return globalLogger;
 }
 
 // Convenience functions for common logging
-export function logError(component: string, message: string, error?: Error, metadata?: any) {
+export function logError(
+  component: string,
+  message: string,
+  error?: Error,
+  metadata?: LogMetadata,
+) {
   getLogger().error(component, message, error, metadata);
 }
 
-export function logWarn(component: string, message: string, metadata?: any) {
+export function logWarn(component: string, message: string, metadata?: LogMetadata) {
   getLogger().warn(component, message, metadata);
 }
 
-export function logInfo(component: string, message: string, metadata?: any) {
+export function logInfo(component: string, message: string, metadata?: LogMetadata) {
   getLogger().info(component, message, metadata);
 }
 
-export function logDebug(component: string, message: string, metadata?: any) {
+export function logDebug(component: string, message: string, metadata?: LogMetadata) {
   getLogger().debug(component, message, metadata);
 }
 
-export function logTrace(component: string, message: string, metadata?: any) {
+export function logTrace(component: string, message: string, metadata?: LogMetadata) {
   getLogger().trace(component, message, metadata);
 }

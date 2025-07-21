@@ -1,4 +1,4 @@
-import { Plugin, TFile, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, Editor } from 'obsidian';
 import { MCPBridgeSettings, DEFAULT_SETTINGS } from '@/types/settings';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
@@ -6,21 +6,31 @@ import { BridgeInterface } from '@/bridge/bridge-interface';
 import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
 import { initializeLogger, getLogger, LogLevel } from '@/utils/logger';
+import { SettingsMigration } from '@/utils/settings-migration';
+import { ConfigManager } from '@/utils/config-manager';
 
 export default class MCPBridgePlugin extends Plugin {
   settings!: MCPBridgeSettings;
   mcpClient!: MCPClient;
   knowledgeEngine!: KnowledgeEngine;
   bridgeInterface!: BridgeInterface;
+  configManager!: ConfigManager;
+  private loggerInitialized = false;
 
   async onload() {
     console.log('Loading MCP Bridge plugin...');
 
+    // Initialize logger first with default settings
+    const logger = initializeLogger(this.app);
+    this.loggerInitialized = true;
+
+    // Initialize config manager
+    this.configManager = new ConfigManager(this.app);
+
     // Load settings
     await this.loadSettings();
 
-    // Initialize logger
-    const logger = initializeLogger(this.app);
+    // Configure logger with loaded settings
     logger.configure({
       enableFileLogging: this.settings.logging.enableFileLogging,
       enableConsoleLogging: this.settings.logging.enableConsoleLogging,
@@ -39,7 +49,7 @@ export default class MCPBridgePlugin extends Plugin {
 
       logger.info('Plugin', 'Core components initialized successfully');
     } catch (error) {
-      logger.error('Plugin', 'Failed to initialize core components', error);
+      logger.error('Plugin', 'Failed to initialize core components', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
 
@@ -68,7 +78,6 @@ export default class MCPBridgePlugin extends Plugin {
       name: 'Discover related knowledge',
       hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'k' }],
       editorCallback: async (editor) => {
-        const cursor = editor.getCursor();
         const context = this.getCurrentContext(editor);
         
         try {
@@ -93,8 +102,20 @@ export default class MCPBridgePlugin extends Plugin {
   async onunload() {
     console.log('Unloading MCP Bridge plugin...');
     
-    const logger = getLogger();
-    logger.info('Plugin', 'MCP Bridge plugin unloading...');
+    // Safe logger access - only use if initialized
+    if (this.loggerInitialized) {
+      try {
+        const logger = getLogger();
+        logger.info('Plugin', 'MCP Bridge plugin unloading...');
+        
+        // Cleanup logger
+        logger.destroy();
+      } catch (error) {
+        console.log('MCP Bridge: Logger cleanup failed:', error);
+      }
+    } else {
+      console.log('MCP Bridge: Plugin unloading (logger not available)');
+    }
     
     // Cleanup connections
     if (this.mcpClient) {
@@ -103,27 +124,45 @@ export default class MCPBridgePlugin extends Plugin {
 
     // Detach views
     this.app.workspace.detachLeavesOfType(CHAT_VIEW_TYPE);
-    
-    // Cleanup logger
-    logger.destroy();
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    // Load settings using ConfigManager
+    const rawSettings = await this.configManager.loadSettings();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
+    
+    // Run settings migration if needed
+    const migration = new SettingsMigration(this.app);
+    const migratedSettings = await migration.migrateSettings(this.settings);
+    
+    // If settings were migrated, save them
+    if (migratedSettings.version !== this.settings.version) {
+      this.settings = migratedSettings;
+      await this.configManager.saveSettings(this.settings);
+      console.log('MCP Bridge: Settings migrated and saved successfully');
+    } else {
+      this.settings = migratedSettings;
+    }
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    await this.configManager.saveSettings(this.settings);
     
-    // Update logger configuration
-    const logger = getLogger();
-    logger.configure({
-      enableFileLogging: this.settings.logging.enableFileLogging,
-      enableConsoleLogging: this.settings.logging.enableConsoleLogging,
-      logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
-      logFilePath: this.settings.logging.logFilePath,
-      maxLogFileSize: this.settings.logging.maxLogFileSize
-    });
+    // Update logger configuration (only if initialized)
+    if (this.loggerInitialized) {
+      try {
+        const logger = getLogger();
+        logger.configure({
+          enableFileLogging: this.settings.logging.enableFileLogging,
+          enableConsoleLogging: this.settings.logging.enableConsoleLogging,
+          logLevel: this.logLevelToEnum(this.settings.logging.logLevel),
+          logFilePath: this.settings.logging.logFilePath,
+          maxLogFileSize: this.settings.logging.maxLogFileSize
+        });
+      } catch (error) {
+        console.log('MCP Bridge: Failed to update logger configuration:', error);
+      }
+    }
     
     // Reinitialize connections if settings changed
     if (this.mcpClient) {
@@ -175,7 +214,7 @@ export default class MCPBridgePlugin extends Plugin {
     }
   }
 
-  private getCurrentContext(editor: any): string {
+  private getCurrentContext(editor: Editor): string {
     const cursor = editor.getCursor();
     const currentLine = editor.getLine(cursor.line);
     const previousLines = [];

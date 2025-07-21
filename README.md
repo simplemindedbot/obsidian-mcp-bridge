@@ -44,34 +44,45 @@
 
 ### 1. Configure MCP Servers
 
-The plugin supports multiple connection types for different MCP servers:
+Configure MCP servers by editing the plugin's JSON configuration file directly. This approach provides maximum flexibility and allows for version control of your configurations.
 
-#### **STDIO Servers** (Local processes)
+#### **Configuration File Location**
+
+Edit the plugin's configuration file at:
+
+```bash
+<vault>/.obsidian/plugins/obsidian-mcp-bridge/obsidian-mcp-bridge-config.json
+```
+
+#### **Example Configuration**
 
 ```json
 {
   "servers": {
     "filesystem": {
       "enabled": true,
-      "name": "Local Filesystem",
+      "name": "Local Filesystem", 
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/documents"],
-      "timeout": 10000,
+      "timeout": 30000,
       "retryAttempts": 3
-    }
-  }
-}
-```
-
-#### **WebSocket Servers** (Remote services)
-
-```json
-{
-  "servers": {
-    "remote-ai": {
-      "enabled": true,
-      "name": "Remote AI Service",
+    },
+    "web-search": {
+      "enabled": false,
+      "name": "Web Search",
+      "type": "stdio", 
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "env": {
+        "BRAVE_API_KEY": "your-api-key-here"
+      }
+    },
+    "remote-service": {
+      "enabled": false,
+      "name": "Remote WebSocket Service",
       "type": "websocket",
       "url": "ws://localhost:8080/mcp",
       "timeout": 15000,
@@ -81,22 +92,11 @@ The plugin supports multiple connection types for different MCP servers:
 }
 ```
 
-#### **SSE Servers** (HTTP-based)
+#### **Server Types Supported**
 
-```json
-{
-  "servers": {
-    "web-api": {
-      "enabled": true,
-      "name": "Web API Server",
-      "type": "sse",
-      "url": "https://api.example.com/mcp",
-      "timeout": 20000,
-      "retryAttempts": 3
-    }
-  }
-}
-```
+- **stdio**: Local processes (filesystem, git, databases)
+- **websocket**: Remote services with persistent connections  
+- **sse**: HTTP-based servers with event streaming
 
 ### 2. Start Using
 
@@ -185,29 +185,33 @@ sequenceDiagram
 
 ## 🛣️ Roadmap
 
-### ✅ Phase 1: Foundation (Completed)
+### ✅ Foundation Complete
+- Complete MCP Protocol implementation (stdio, WebSocket, SSE)
+- Production-grade error handling and health monitoring
+- Comprehensive testing (34 tests, 100% pass rate)
+- TypeScript architecture with strict mode
 
-- [x] **Complete MCP Protocol Implementation** - Full stdio, WebSocket, and SSE support
-- [x] **Robust Error Handling** - Retry logic, health monitoring, and connection recovery
-- [x] **Core Plugin Architecture** - Clean separation of concerns with TypeScript
-- [x] **Comprehensive Testing** - 34 unit tests covering all core components
-- [x] **Production Build System** - Optimized bundling and development tools
+### 🔄 Active Development
+- Advanced link discovery between notes and external content
+- Enhanced UI for search results and content insertion
+- Integration testing with real MCP servers
 
-### 🔄 Phase 2: Knowledge Discovery (In Progress)
+### 🔮 Future Features
+- Knowledge graph visualization
+- Workflow automation and templates
+- Plugin SDK for community extensions
+- Advanced AI reasoning capabilities
 
-- [x] **Cross-Server Search** - Query multiple MCP servers simultaneously
-- [x] **Vault Integration** - Search Obsidian vault with AI-powered relevance scoring
-- [x] **Basic Content Synthesis** - Intelligent content recommendations
-- [x] **Natural Language Interface** - Chat with knowledge base using plain English
-- [ ] **Advanced Link Discovery** - Automatic connection finding between ideas
-- [ ] **Smart Content Insertion** - Context-aware content suggestions
+## 🔐 Security
 
-### 🔮 Phase 3: Advanced Features (Planned)
+This plugin handles sensitive data including API keys and database credentials. Security best practices are built-in:
 
-- [ ] **Knowledge Graph Integration** - Visual representation of content relationships
-- [ ] **Workflow Automation** - Automated content processing and organization
-- [ ] **Advanced AI Interactions** - Multi-step reasoning and complex queries
-- [ ] **Plugin Ecosystem** - Extensible architecture for custom integrations
+- **Automatic Secret Protection**: API keys are redacted from logs and error messages
+- **Environment Variable Support**: Store sensitive configuration outside the codebase  
+- **Input Validation**: All user inputs and MCP responses are validated
+- **Secure Communication**: HTTPS/WSS required for external connections
+
+**For Developers**: See [SECURITY.md](SECURITY.md) for comprehensive security guidelines.
 
 ## 🤝 Contributing
 
@@ -232,6 +236,10 @@ npm test
 # Run tests with coverage
 npm run test:coverage
 
+# Security scanning
+npm run security:scan       # Scan for secrets
+npm run security:check      # Full security audit
+
 # Type checking
 npm run type-check
 
@@ -243,24 +251,21 @@ npm run lint
 npm run format
 ```
 
-### Current Status
+### Development Status
+- **Build**: ✅ Clean TypeScript compilation
+- **Tests**: ✅ 34/34 passing (100% success rate)
+- **Quality**: ✅ ESLint security rules and Prettier formatting
+- **Documentation**: ✅ Comprehensive guides and API references
 
-- **Build Status**: ✅ Clean compilation and production builds
-- **Test Coverage**: ✅ 34/34 tests passing (100% pass rate)
-- **Type Safety**: ✅ Full TypeScript coverage with strict mode
-- **Code Quality**: ✅ ESLint and Prettier configuration
+### Architecture
 
-### Project Structure
-
-```text
-src/
-├── core/           # MCP protocol implementation
-├── bridge/         # Obsidian ↔ MCP translation layer
-├── ui/            # User interface components
-├── knowledge/     # Knowledge discovery engine
-├── types/         # TypeScript definitions
-└── utils/         # Utility functions
-```
+| Component | Purpose |
+|-----------|----------|
+| **MCP Client** | Protocol implementation and server management |
+| **Bridge Interface** | Obsidian ↔ MCP translation layer |
+| **Knowledge Engine** | Content discovery and relevance scoring |
+| **UI Components** | Settings interface and chat view |
+| **Testing Suite** | 34 unit tests with comprehensive coverage |
 
 ## 📄 License
 

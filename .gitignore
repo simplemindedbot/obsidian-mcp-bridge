@@ -19,12 +19,34 @@ build/
 *.swo
 *~
 
-# Environment
+# Environment and Secrets
 .env
 .env.local
 .env.development
 .env.test
 .env.production
+.env.*
+!.env.example
+
+# Plugin Configuration with Secrets
+data.json
+settings.json
+**/data.json
+**/settings.json
+
+# Development secrets
+secrets/
+.secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+
+# API Keys and Tokens
+api-keys.json
+tokens.json
+credentials.json
+auth.json
 
 # Logs
 logs/
@@ -61,4 +83,3 @@ data.json
 .hotreload
 .claude
 .venv
-CLAUDE.md

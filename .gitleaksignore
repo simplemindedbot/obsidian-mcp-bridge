@@ -1,0 +1,8 @@
+# Gitleaks ignore file
+# Use fingerprints to ignore specific false positives
+
+# Example API key in SECURITY.md documentation
+SECURITY.md:generic-api-key:125
+
+# Historical API key that was removed from .claude-context
+b78775365f1c1e8965b8bc91e9171a156b84f705:.claude-context:generic-api-key:33
