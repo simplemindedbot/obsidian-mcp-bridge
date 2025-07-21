@@ -30,6 +30,22 @@ export class BridgeInterface {
       let toolsCalled: string[] = [];
 
       switch (intent) {
+        case "filesystem-list":
+          response = await this.handleFilesystemList(query);
+          toolsCalled.push("list_directory");
+          break;
+        case "filesystem-read":
+          response = await this.handleFilesystemRead(query);
+          toolsCalled.push("read_file");
+          break;
+        case "filesystem-write":
+          response = await this.handleFilesystemWrite(query);
+          toolsCalled.push("write_file");
+          break;
+        case "filesystem-search":
+          response = await this.handleFilesystemSearch(query);
+          toolsCalled.push("search_files");
+          break;
         case "search":
           response = await this.handleSearch(query);
           toolsCalled.push("search");
@@ -88,8 +104,38 @@ export class BridgeInterface {
   private classifyIntent(query: string): string {
     const queryLower = query.toLowerCase();
 
+    // File system operations
+    if (
+      queryLower.includes("list") ||
+      queryLower.includes("directory") ||
+      queryLower.includes("folder") ||
+      queryLower.includes("files") ||
+      queryLower.includes("ls") ||
+      queryLower.includes("dir")
+    ) {
+      return "filesystem-list";
+    }
+
+    if (
+      queryLower.includes("read") ||
+      queryLower.includes("open") ||
+      queryLower.includes("show") ||
+      queryLower.includes("cat") ||
+      queryLower.includes("content")
+    ) {
+      return "filesystem-read";
+    }
+
+    if (
+      queryLower.includes("write") ||
+      queryLower.includes("create") ||
+      queryLower.includes("save")
+    ) {
+      return "filesystem-write";
+    }
+
     if (queryLower.includes("find") || queryLower.includes("search")) {
-      return "search";
+      return "filesystem-search";
     }
 
     if (
@@ -144,6 +190,148 @@ export class BridgeInterface {
         )
         .join("\n")
     );
+  }
+
+  private async handleFilesystemList(query: string): Promise<string> {
+    const connectedServers = this.mcpClient.getConnectedServers();
+    const filesystemServer = connectedServers.find(server => server === 'filesystem');
+    
+    if (!filesystemServer) {
+      return "Filesystem server is not connected. Please check your settings.";
+    }
+
+    // Extract path from query or use current directory
+    let path = ".";
+    
+    // Handle common phrases that should use current directory
+    const currentDirPhrases = [
+      /^list\s+(?:the\s+)?(?:current\s+)?directory$/i,
+      /^list\s+(?:the\s+)?(?:current\s+)?folder$/i,
+      /^list\s+files$/i,
+      /^list$/i,
+      /^ls$/i
+    ];
+    
+    const isCurrentDir = currentDirPhrases.some(pattern => pattern.test(query.trim()));
+    
+    if (!isCurrentDir) {
+      // Try to extract specific path
+      const pathMatch = query.match(/(?:list|ls|show)\s+(?:directory\s+|folder\s+)?(.+)/i);
+      if (pathMatch) {
+        const extractedPath = pathMatch[1].trim();
+        // Don't use common words as paths
+        if (!['directory', 'current', 'the', 'files', 'folder'].includes(extractedPath.toLowerCase())) {
+          path = extractedPath;
+        }
+      }
+    }
+
+    try {
+      const response = await this.mcpClient.callTool(filesystemServer, "list_directory", { path });
+      const content = response.result?.content;
+      
+      if (Array.isArray(content)) {
+        return content.map(item => item.text || '').join('\n');
+      } else if (typeof content === 'string') {
+        return content;
+      }
+      
+      return `Directory listing for: ${path}\n${JSON.stringify(content, null, 2)}`;
+    } catch (error) {
+      return `Failed to list directory: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  private async handleFilesystemRead(query: string): Promise<string> {
+    const connectedServers = this.mcpClient.getConnectedServers();
+    const filesystemServer = connectedServers.find(server => server === 'filesystem');
+    
+    if (!filesystemServer) {
+      return "Filesystem server is not connected. Please check your settings.";
+    }
+
+    // Extract file path from query
+    const pathMatch = query.match(/(?:read|open|show|cat)\s+(.+)/i);
+    if (!pathMatch) {
+      return "Please specify a file path to read.";
+    }
+
+    const path = pathMatch[1].trim();
+
+    try {
+      const response = await this.mcpClient.callTool(filesystemServer, "read_file", { path });
+      const content = response.result?.content;
+      
+      if (Array.isArray(content)) {
+        return content.map(item => item.text || '').join('\n');
+      } else if (typeof content === 'string') {
+        return content;
+      }
+      
+      return `File contents of ${path}:\n${JSON.stringify(content, null, 2)}`;
+    } catch (error) {
+      return `Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  private async handleFilesystemWrite(query: string): Promise<string> {
+    const connectedServers = this.mcpClient.getConnectedServers();
+    const filesystemServer = connectedServers.find(server => server === 'filesystem');
+    
+    if (!filesystemServer) {
+      return "Filesystem server is not connected. Please check your settings.";
+    }
+
+    // Extract file path and content from query
+    const writeMatch = query.match(/(?:write|create|save)\s+(.+)\s+with\s+(.+)/i);
+    if (!writeMatch) {
+      return "Please specify: write <file_path> with <content>";
+    }
+
+    const path = writeMatch[1].trim();
+    const content = writeMatch[2].trim();
+
+    try {
+      await this.mcpClient.callTool(filesystemServer, "write_file", { path, content });
+      return `Successfully wrote to ${path}`;
+    } catch (error) {
+      return `Failed to write file: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  private async handleFilesystemSearch(query: string): Promise<string> {
+    const connectedServers = this.mcpClient.getConnectedServers();
+    const filesystemServer = connectedServers.find(server => server === 'filesystem');
+    
+    if (!filesystemServer) {
+      return "Filesystem server is not connected. Please check your settings.";
+    }
+
+    // Extract search pattern from query
+    const searchMatch = query.match(/(?:find|search)\s+(.+)/i);
+    if (!searchMatch) {
+      return "Please specify a search pattern.";
+    }
+
+    const pattern = searchMatch[1].trim();
+
+    try {
+      const response = await this.mcpClient.callTool(filesystemServer, "search_files", { 
+        path: ".", 
+        pattern 
+      });
+      const content = response.result?.content;
+      
+      if (Array.isArray(content)) {
+        return content.map(item => item.text || '').join('\n');
+      } else if (typeof content === 'string') {
+        return content;
+      }
+      
+      return `Search results for "${pattern}":\n${JSON.stringify(content, null, 2)}`;
+    } catch (error) {
+      return `Failed to search files: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
   }
 
   private async handleGeneral(query: string): Promise<string> {

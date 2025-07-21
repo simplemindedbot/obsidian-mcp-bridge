@@ -10,6 +10,7 @@ import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/webso
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { getLogger } from "@/utils/logger";
 import { PathResolver } from "@/utils/path-resolver";
+import { CustomStdioTransport } from "./custom-stdio-transport";
 
 interface RetryOptions {
   maxAttempts: number;
@@ -322,6 +323,7 @@ class MCPConnection {
     | StdioClientTransport
     | WebSocketClientTransport
     | SSEClientTransport; // MCP transport
+  private customTransport?: CustomStdioTransport; // Custom stdio transport
   private isConnected = false;
 
   constructor(serverId: string, config: MCPServerConfig) {
@@ -344,7 +346,7 @@ class MCPConnection {
       });
 
       await Promise.race([connectPromise, timeoutPromise]);
-      this.isConnected = true;
+      this.isConnected = this.customTransport?.isConnected() ?? true;
     } catch (error) {
       // Cleanup on connection failure
       await this.disconnect();
@@ -370,6 +372,15 @@ class MCPConnection {
 
   async disconnect(): Promise<void> {
     if (!this.isConnected) return;
+
+    if (this.customTransport) {
+      try {
+        await this.customTransport.disconnect();
+      } catch (error) {
+        console.error(`Error closing custom transport for ${this.serverId}:`, error);
+      }
+      this.customTransport = undefined;
+    }
 
     if (this.client) {
       try {
@@ -401,63 +412,109 @@ class MCPConnection {
   }
 
   async callTool(toolName: string, parameters?: MCPToolParameters): Promise<MCPResponse> {
-    if (!this.isConnected || !this.client) {
-      throw new Error(`Not connected to server: ${this.serverId}`);
-    }
+    if (this.customTransport && this.customTransport.isConnected()) {
+      try {
+        // List available tools first to validate the tool exists
+        const tools = await this.customTransport.listTools();
+        const tool = tools.tools?.find((t: any) => t.name === toolName);
 
-    try {
-      // List available tools first to validate the tool exists
-      const tools = await this.client.listTools();
-      const tool = tools.tools.find((t) => t.name === toolName);
+        if (!tool) {
+          throw new Error(
+            `Tool '${toolName}' not found on server '${this.serverId}'`,
+          );
+        }
 
-      if (!tool) {
-        throw new Error(
-          `Tool '${toolName}' not found on server '${this.serverId}'`,
+        // Call the tool with the custom transport
+        const result = await this.customTransport.callTool(toolName, parameters || {});
+
+        return {
+          id: Math.random().toString(36),
+          result: {
+            content: result.content || [],
+            isError: result.isError || false,
+          },
+        };
+      } catch (error) {
+        console.error(
+          `Error calling tool ${toolName} on server ${this.serverId} via custom transport:`,
+          error,
         );
+        throw error;
       }
+    } else if (this.isConnected && this.client) {
+      try {
+        // List available tools first to validate the tool exists
+        const tools = await this.client.listTools();
+        const tool = tools.tools.find((t) => t.name === toolName);
 
-      // Call the tool with the MCP client
-      const result = await this.client.callTool({
-        name: toolName,
-        arguments: parameters || {},
-      });
+        if (!tool) {
+          throw new Error(
+            `Tool '${toolName}' not found on server '${this.serverId}'`,
+          );
+        }
 
-      return {
-        id: Math.random().toString(36),
-        result: {
-          content: result.content || [],
-          isError: result.isError || false,
-        },
-      };
-    } catch (error) {
-      console.error(
-        `Error calling tool ${toolName} on server ${this.serverId}:`,
-        error,
-      );
-      throw error;
+        // Call the tool with the MCP client
+        const result = await this.client.callTool({
+          name: toolName,
+          arguments: parameters || {},
+        });
+
+        return {
+          id: Math.random().toString(36),
+          result: {
+            content: result.content || [],
+            isError: result.isError || false,
+          },
+        };
+      } catch (error) {
+        console.error(
+          `Error calling tool ${toolName} on server ${this.serverId}:`,
+          error,
+        );
+        throw error;
+      }
+    } else {
+      throw new Error(`Not connected to server: ${this.serverId}`);
     }
   }
 
   async getResources(): Promise<MCPResource[]> {
-    if (!this.isConnected || !this.client) {
+    if (this.customTransport && this.customTransport.isConnected()) {
+      try {
+        // List available resources using the custom transport
+        const resources = await this.customTransport.listResources();
+        return (resources.resources || []).map((resource: any) => ({
+          uri: resource.uri,
+          name: resource.name,
+          description: resource.description,
+          mimeType: resource.mimeType,
+        }));
+      } catch (error) {
+        console.error(
+          `Error listing resources on server ${this.serverId} via custom transport:`,
+          error,
+        );
+        throw error;
+      }
+    } else if (this.isConnected && this.client) {
+      try {
+        // List available resources using the MCP client
+        const resources = await this.client.listResources();
+        return (resources.resources || []).map(resource => ({
+          uri: resource.uri,
+          name: resource.name,
+          description: resource.description,
+          mimeType: resource.mimeType,
+        }));
+      } catch (error) {
+        console.error(
+          `Error listing resources on server ${this.serverId}:`,
+          error,
+        );
+        throw error;
+      }
+    } else {
       throw new Error(`Not connected to server: ${this.serverId}`);
-    }
-
-    try {
-      // List available resources using the MCP client
-      const resources = await this.client.listResources();
-      return (resources.resources || []).map(resource => ({
-        uri: resource.uri,
-        name: resource.name,
-        description: resource.description,
-        mimeType: resource.mimeType,
-      }));
-    } catch (error) {
-      console.error(
-        `Error listing resources on server ${this.serverId}:`,
-        error,
-      );
-      throw error;
     }
   }
 
@@ -528,7 +585,7 @@ class MCPConnection {
     const logger = getLogger();
     logger.info(
       "MCPConnection",
-      `Attempting stdio connection: ${this.config.command} ${this.config.args?.join(" ") || ""}`,
+      `Attempting stdio connection with custom transport: ${this.config.command} ${this.config.args?.join(" ") || ""}`,
     );
 
     try {
@@ -547,31 +604,25 @@ class MCPConnection {
         args.push(this.config.workingDirectory);
       }
 
-      console.log(`Connecting via stdio: ${resolvedCommand} ${args.join(" ")}`);
+      console.log(`Connecting via custom stdio transport: ${resolvedCommand} ${args.join(" ")}`);
 
-      // Create MCP transport - this handles process spawning internally
-      this.transport = new StdioClientTransport({
+      // Create custom transport
+      this.customTransport = new CustomStdioTransport({
         command: resolvedCommand,
         args: args,
-        env: this.config.env || {},
+        env: {
+          ...Object.fromEntries(
+            Object.entries(process.env).filter(([_, v]) => v !== undefined)
+          ),
+          ...(this.config.env || {}),
+        } as Record<string, string>,
+        workingDirectory: this.config.workingDirectory,
       });
 
-      // Create MCP client
-      this.client = new Client(
-        {
-          name: "obsidian-mcp-bridge",
-          version: "0.1.0",
-        },
-        {
-          capabilities: {
-            tools: {},
-            resources: {},
-          },
-        },
-      );
-
-      // Connect to the MCP server
-      await this.client.connect(this.transport);
+      // Connect using custom transport
+      await this.customTransport.connect();
+      
+      logger.info("MCPConnection", `Successfully connected to MCP server: ${this.serverId}`);
       console.log(`Successfully connected to MCP server: ${this.serverId}`);
     } catch (error) {
       console.error(`Failed to connect to MCP server ${this.serverId}:`, error);

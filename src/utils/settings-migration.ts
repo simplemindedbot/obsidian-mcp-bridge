@@ -58,9 +58,10 @@ export class SettingsMigration {
         const lastArg = config.args[config.args.length - 1];
         if (
           lastArg === "./" ||
+          lastArg === "." ||
           lastArg.startsWith("/") ||
           lastArg.startsWith("~") ||
-          lastArg.includes("/")
+          (lastArg.startsWith("./") && lastArg !== "./")
         ) {
           // Move directory from args to workingDirectory
           config.workingDirectory = lastArg;

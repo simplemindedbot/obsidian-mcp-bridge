@@ -20,15 +20,17 @@ export default class MCPBridgePlugin extends Plugin {
   async onload() {
     console.log('Loading MCP Bridge plugin...');
 
+    // Initialize logger first with default settings
+    const logger = initializeLogger(this.app);
+    this.loggerInitialized = true;
+
     // Initialize config manager
     this.configManager = new ConfigManager(this.app);
 
     // Load settings
     await this.loadSettings();
 
-    // Initialize logger
-    const logger = initializeLogger(this.app);
-    this.loggerInitialized = true;
+    // Configure logger with loaded settings
     logger.configure({
       enableFileLogging: this.settings.logging.enableFileLogging,
       enableConsoleLogging: this.settings.logging.enableConsoleLogging,
