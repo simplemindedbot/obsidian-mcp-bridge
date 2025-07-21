@@ -3,6 +3,7 @@ import { MCPBridgeSettings, DEFAULT_SETTINGS } from '@/types/settings';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
 import { BridgeInterface } from '@/bridge/bridge-interface';
+import { LLMProviderConfig } from '@/core/llm-router';
 import { MCPBridgeSettingTab } from '@/ui/settings-tab';
 import { ChatView, CHAT_VIEW_TYPE } from '@/ui/chat-view';
 import { initializeLogger, getLogger, LogLevel } from '@/utils/logger';
@@ -45,7 +46,10 @@ export default class MCPBridgePlugin extends Plugin {
       // Initialize core components
       this.mcpClient = new MCPClient(this.settings);
       this.knowledgeEngine = new KnowledgeEngine(this.app, this.mcpClient);
-      this.bridgeInterface = new BridgeInterface(this.app, this.mcpClient, this.knowledgeEngine);
+      
+      // Create LLM config if intelligent routing is enabled
+      const llmConfig = this.createLLMConfig();
+      this.bridgeInterface = new BridgeInterface(this.app, this.mcpClient, this.knowledgeEngine, llmConfig);
 
       logger.info('Plugin', 'Core components initialized successfully');
     } catch (error) {
@@ -168,6 +172,31 @@ export default class MCPBridgePlugin extends Plugin {
     if (this.mcpClient) {
       await this.mcpClient.updateSettings(this.settings);
     }
+    
+    // Update LLM configuration if enabled
+    if (this.bridgeInterface) {
+      const llmConfig = this.createLLMConfig();
+      if (llmConfig) {
+        this.bridgeInterface.configureLLM(llmConfig);
+      }
+    }
+  }
+
+  private createLLMConfig(): LLMProviderConfig | undefined {
+    if (!this.settings.llm.enableIntelligentRouting || this.settings.llm.provider === 'disabled') {
+      return undefined;
+    }
+
+    const apiKey = this.settings.apiKeys[this.settings.llm.provider];
+    
+    return {
+      provider: this.settings.llm.provider,
+      apiKey,
+      model: this.settings.llm.model,
+      baseUrl: this.settings.llm.baseUrl,
+      maxTokens: this.settings.llm.maxTokens,
+      temperature: this.settings.llm.temperature,
+    };
   }
 
   private logLevelToEnum(level: string): LogLevel {

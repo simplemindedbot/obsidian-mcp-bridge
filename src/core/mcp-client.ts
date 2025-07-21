@@ -250,6 +250,26 @@ export class MCPClient {
     return this.connections.has(serverId);
   }
 
+  async callServerMethod(serverId: string, method: string, params: any = {}): Promise<any> {
+    const connection = this.connections.get(serverId);
+    if (!connection) {
+      throw new Error(`No connection to server: ${serverId}`);
+    }
+
+    if ((connection as any).customTransport && (connection as any).customTransport.isConnected()) {
+      return await (connection as any).customTransport.callMethod(method, params);
+    } else if ((connection as any).client) {
+      // For SDK-based connections, we'd need to implement raw method calls
+      throw new Error(`Raw method calls not supported for SDK-based connections to ${serverId}`);
+    } else {
+      throw new Error(`No available transport for server ${serverId}`);
+    }
+  }
+
+  async listServerTools(serverId: string): Promise<any> {
+    return this.callServerMethod(serverId, 'tools/list', {});
+  }
+
   getServerHealth(serverId: string): ConnectionHealth | undefined {
     return this.healthMonitor.get(serverId);
   }

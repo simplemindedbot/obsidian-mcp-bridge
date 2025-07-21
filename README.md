@@ -186,17 +186,20 @@ sequenceDiagram
 ## 🛣️ Roadmap
 
 ### ✅ Foundation Complete
+
 - Complete MCP Protocol implementation (stdio, WebSocket, SSE)
 - Production-grade error handling and health monitoring
 - Comprehensive testing (34 tests, 100% pass rate)
 - TypeScript architecture with strict mode
 
 ### 🔄 Active Development
+
 - Advanced link discovery between notes and external content
 - Enhanced UI for search results and content insertion
 - Integration testing with real MCP servers
 
 ### 🔮 Future Features
+
 - Knowledge graph visualization
 - Workflow automation and templates
 - Plugin SDK for community extensions
@@ -252,6 +255,7 @@ npm run format
 ```
 
 ### Development Status
+
 - **Build**: ✅ Clean TypeScript compilation
 - **Tests**: ✅ 34/34 passing (100% success rate)
 - **Quality**: ✅ ESLint security rules and Prettier formatting

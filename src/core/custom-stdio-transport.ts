@@ -221,6 +221,17 @@ export class CustomStdioTransport {
     return this.sendMessage(message);
   }
 
+  async callMethod(method: string, params: any = {}): Promise<any> {
+    const message = {
+      jsonrpc: '2.0',
+      id: this.messageId++,
+      method,
+      params,
+    };
+
+    return this.sendMessage(message);
+  }
+
   async disconnect(): Promise<void> {
     if (this.process) {
       this.process.kill();
