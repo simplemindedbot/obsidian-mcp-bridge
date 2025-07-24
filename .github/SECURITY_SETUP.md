@@ -27,7 +27,7 @@ This document explains how to enable and configure security features for the Obs
 
 1. **Navigate to Repository Settings**
    - Go to "Settings" → "Security" → "Secret scanning"
-   - Enable "Secret scanning" 
+   - Enable "Secret scanning"
    - Enable "Push protection" (recommended)
 
 ### Enable Dependency Scanning
@@ -43,6 +43,7 @@ This document explains how to enable and configure security features for the Obs
 ### Security Workflow (`.github/workflows/security.yml`)
 
 This workflow runs:
+
 - **Gitleaks**: Secret detection in git history
 - **npm audit**: Dependency vulnerability scanning  
 - **ESLint**: Code quality analysis with SARIF output
@@ -50,6 +51,7 @@ This workflow runs:
 ### CodeQL Workflow (`.github/workflows/codeql.yml`)
 
 This workflow runs:
+
 - **CodeQL Analysis**: Advanced semantic code analysis
 - **TypeScript scanning**: Language-specific security analysis
 - **SARIF upload**: Results integration with GitHub Security tab
