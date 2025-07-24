@@ -136,21 +136,23 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 
 ## Current Status
 
-### ✅ Recently Completed (Latest)
+### ✅ Recently Completed (v0.1.1-beta - 2025-01-24)
 
-- **OpenAI-Compatible LLM Support** - Added OpenRouter and custom endpoint support, fixed CORS issues
-- **Cross-Platform Compatibility** - Removed all hardcoded paths, added Windows/macOS/Linux support
-- **Security Infrastructure** - ESLint configuration, code scanning fixes, GitHub Actions security workflow
-- **Settings Migration System** - Version-based upgrades, working directory separation
-- **Enhanced UI** - Individual argument inputs, dynamic add/remove functionality
-- **Path Resolution** - Cross-platform executable discovery, ENOENT error fixes
-- **Testing Coverage** - 34+ unit tests with Vitest, comprehensive error handling
+- **🚀 Public Beta Release** - First public release with comprehensive documentation
+- **Multi-Server Dynamic Loading** - Enhanced system to load ALL servers from config, not just filesystem
+- **Intelligent LLM Routing** - Context-aware query routing with OpenAI/Anthropic/OpenAI-compatible support
+- **Enhanced Server Discovery** - Automatic cataloging of server capabilities and tools
+- **Improved Fallback Logic** - Better heuristic routing for git, web search, filesystem, and database operations
+- **Cross-Platform Compatibility** - Full Windows/macOS/Linux support with dynamic path resolution
+- **Security Infrastructure** - Comprehensive secret protection, ESLint security rules, automated scanning
+- **Professional Documentation** - Installation guides, security practices, API references, release notes
 
-### 🔄 Development Priorities
+### 🔄 Development Priorities (v0.2.0)
 
-1. **Plugin Testing** - Verify in real Obsidian environment
-2. **MCP Server Integration** - Test filesystem, web search, and git servers
-3. **Performance Optimization** - Improve connection handling and error recovery
+1. **Beta Feedback Integration** - Address user reports and feedback from public beta
+2. **Test Suite Improvements** - Fix timeout issues in mock scenarios
+3. **Performance Optimization** - Reduce server discovery time and improve error handling
+4. **Enhanced UI/UX** - Better user experience for server configuration and routing results
 
 ## Claude Code Instructions
 

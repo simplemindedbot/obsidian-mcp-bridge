@@ -2,9 +2,21 @@
 
 This guide will help you install and set up the Obsidian MCP Bridge plugin.
 
+> **🚧 Beta Release v0.1.1** - This is a public beta release. Please report any issues you encounter!
+
 ## 📥 Quick Start
 
-**First, clone the repository:**
+### Option 1: Download Beta Release (Recommended)
+
+**Download the latest beta release:**
+
+1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.1.1-beta)
+2. Download `main.js` and `manifest.json`
+3. Follow [Method 1](#method-1-manual-installation-recommended-for-users) below
+
+### Option 2: Build from Source
+
+**Clone the repository:**
 
 ```bash
 git clone https://github.com/simplemindedbot/obsidian-mcp-bridge.git
@@ -30,8 +42,13 @@ cd obsidian-mcp-bridge
 
 This is the most straightforward method for end users.
 
-#### Step 1: Build the Plugin
+#### Step 1: Get the Plugin Files
 
+**Option A: Download Beta Release (Easiest)**
+1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.1.1-beta)
+2. Download `main.js` and `manifest.json`
+
+**Option B: Build from Source**
 ```bash
 # From the cloned repository directory
 npm install
@@ -62,10 +79,12 @@ C:\path\to\your\vault\.obsidian\plugins\
 # Create the plugin directory
 mkdir -p "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge"
 
-# Copy the built files
+# Copy the plugin files (downloaded or built)
 cp main.js "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
 cp manifest.json "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
-cp styles.css "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
+
+# Note: styles.css is only needed if built from source
+# cp styles.css "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
 ```
 
 ### Method 2: Symbolic Link (For Developers)
@@ -211,6 +230,7 @@ npm install -g @modelcontextprotocol/server-postgres
    - Or use Command Palette: "MCP Bridge: Open Chat"
 
 2. **Try a Natural Language Query:**
+
    ```
    "find my notes about productivity"
    "search for recent files"
@@ -229,6 +249,7 @@ npm install -g @modelcontextprotocol/server-postgres
    - Red indicators mean connection issues
 
 2. **Test MCP Server Integration:**
+
    ```
    "list files in my documents folder"
    "show me recent git commits"
@@ -244,12 +265,14 @@ npm install -g @modelcontextprotocol/server-postgres
 The plugin includes comprehensive logging capabilities to help diagnose issues:
 
 ### **Log Files**
+
 - **Location**: `.obsidian/plugins/obsidian-mcp-bridge/logs/`
 - **Format**: Structured logs with timestamps, components, and error details
 - **Rotation**: Automatic log rotation when files exceed size limits
 - **Retention**: Configurable number of historical log files
 
 ### **Log Levels**
+
 - **Error**: Critical errors that prevent functionality
 - **Warning**: Non-critical issues that may affect performance
 - **Info**: General information about plugin operations
@@ -257,12 +280,15 @@ The plugin includes comprehensive logging capabilities to help diagnose issues:
 - **Trace**: Extremely detailed information for development
 
 ### **Managing Logs**
+
 1. **View Logs**: Use the "View Logs" button in settings to create a note with current logs
 2. **Clear Logs**: Use the "Clear Logs" button to delete all log files
 3. **Configure Logging**: Adjust log levels and file sizes in "Logging & Debugging" settings
 
 ### **Log File Analysis**
+
 Each log entry contains:
+
 - **Timestamp**: When the event occurred
 - **Level**: Severity of the message
 - **Component**: Which part of the plugin generated the log
@@ -277,6 +303,7 @@ Each log entry contains:
 #### Plugin Not Appearing
 
 1. **Check file permissions:**
+
    ```bash
    ls -la "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
    ```
@@ -292,7 +319,7 @@ Each log entry contains:
 
 1. **"spawn npx ENOENT" Error:**
    This error occurs when Obsidian can't find the `npx` command. The plugin automatically resolves executable paths, but if you continue to see this error:
-   
+
    ```bash
    # Verify npx is available in your shell
    which npx
@@ -301,10 +328,11 @@ Each log entry contains:
    node --version  # Should be v16 or higher
    npm --version   # Should be available
    ```
-   
+
    **Solution:** The plugin includes automatic path resolution that finds executables in common locations. If you're still having issues, check the logs in plugin settings for detailed path resolution information.
 
 2. **Test MCP servers independently:**
+
    ```bash
    # Test filesystem server
    npx @modelcontextprotocol/server-filesystem /path/to/test
@@ -319,6 +347,7 @@ Each log entry contains:
    - Check file/directory permissions
 
 4. **Verify Node.js installation:**
+
    ```bash
    node --version  # Should be v16 or higher
    npm --version   # Should be available
@@ -403,6 +432,7 @@ When reporting issues, please include:
 ### Manual Updates
 
 1. **Pull latest changes:**
+
    ```bash
    cd /path/to/obsidian-mcp-bridge
    git pull origin main
@@ -411,6 +441,7 @@ When reporting issues, please include:
    ```
 
 2. **Copy updated files:**
+
    ```bash
    cp main.js "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
    cp manifest.json "/path/to/your/vault/.obsidian/plugins/obsidian-mcp-bridge/"
@@ -431,9 +462,9 @@ If you installed via BRAT, updates are automatic:
    - Click "Update" next to MCP Bridge
    - Restart Obsidian
 
-## 🎉 You're Ready!
+## 🎉 You're Ready
 
-Congratulations! You've successfully installed the Obsidian MCP Bridge plugin. 
+Congratulations! You've successfully installed the Obsidian MCP Bridge plugin.
 
 ### Next Steps
 

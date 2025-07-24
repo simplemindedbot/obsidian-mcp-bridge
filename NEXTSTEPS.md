@@ -1,31 +1,33 @@
-# Development Roadmap
+# Development Roadmap - v0.1.1-beta Released! 🚀
 
-## ✅ Foundation Complete
+## ✅ Foundation Complete (Public Beta v0.1.1)
 
 ### Core Infrastructure
-- **MCP Protocol**: Full stdio, WebSocket, and SSE support
-- **Error Handling**: Production-grade retry logic and health monitoring
-- **Testing**: 34 unit tests with 100% pass rate
-- **Security**: API key protection and automated scanning
-- **Architecture**: Clean TypeScript implementation with strict mode
+- **MCP Protocol**: Full stdio, WebSocket, and SSE support ✅
+- **Dynamic Server Loading**: Load ALL servers from config, not just filesystem ✅
+- **LLM-Based Routing**: Intelligent query routing with OpenAI/Anthropic/OpenAI-compatible APIs ✅
+- **Error Handling**: Production-grade retry logic and health monitoring ✅
+- **Security**: API key protection and automated scanning ✅
+- **Architecture**: Clean TypeScript implementation with strict mode ✅
 
 ### Knowledge Discovery
-- **Cross-Server Search**: Query multiple MCP servers simultaneously
-- **Vault Integration**: AI-powered search of Obsidian notes
-- **Natural Language**: Chat interface with intent classification
-- **Content Synthesis**: Intelligent recommendations and connections
+- **Multi-Server Search**: Query multiple MCP servers simultaneously ✅
+- **Vault Integration**: AI-powered search of Obsidian notes ✅
+- **Natural Language**: Chat interface with intelligent routing ✅
+- **Server Discovery**: Automatic cataloging of server capabilities ✅
 
-## 🔄 Active Development
+## 🚧 Beta Limitations & Next Steps
 
-### High Priority
-- [ ] **Advanced Link Discovery** - Automatic connection finding between notes and external content
-- [ ] **Integration Testing** - End-to-end testing with real MCP servers
-- [ ] **UI Enhancement** - Improved settings interface and discovery results
+### High Priority (v0.2.0)
+- [ ] **Beta Feedback Integration** - Address user reports and community feedback
+- [ ] **Test Suite Improvements** - Fix timeout issues in mock scenarios
+- [ ] **Performance Optimization** - Reduce server discovery time, improve error handling
+- [ ] **Enhanced UI/UX** - Better user experience for server configuration and routing results
 
 ### Medium Priority
+- [ ] **Advanced Link Discovery** - Automatic connection finding between notes and external content
+- [ ] **Integration Testing** - End-to-end testing with real MCP servers  
 - [ ] **Smart Content Insertion** - Context-aware suggestions while writing
-- [ ] **Performance Optimization** - Large vault handling and memory usage
-- [ ] **Path Resolution** - Enhanced executable discovery across platforms
 
 ## 🔮 Future Features
 
@@ -48,17 +50,17 @@
 
 ## 🎯 Development Priorities
 
-### Immediate (Next 2-4 weeks)
-1. **Advanced Link Discovery** - Automatic connection finding between ideas
+### Immediate (v0.2.0 - Next 4-6 weeks)
+1. **Beta Feedback Integration** - Address community reports and suggestions
+2. **Test Suite Stabilization** - Fix timeout issues and improve reliability
+3. **Performance Improvements** - Faster server discovery and better error messages
+
+### Short-term (v0.3.0 - 2-3 months)
+1. **Advanced UI/UX** - Enhanced settings interface and routing visualization
 2. **Integration Testing** - End-to-end testing with real MCP servers
-3. **UI Enhancement** - Improved settings and discovery interfaces
+3. **Advanced Link Discovery** - Automatic connection finding between ideas
 
-### Short-term (1-3 months)
-1. **Performance Optimization** - Large vault handling improvements
-2. **Smart Content Insertion** - Context-aware writing assistance
-3. **Documentation Expansion** - User guides and tutorials
-
-### Long-term (3-6 months)
+### Long-term (v1.0.0 - 4-6 months)
 1. **Knowledge Graph** - Visual relationship mapping
 2. **Plugin SDK** - Community extension framework
 3. **Advanced AI** - Multi-step reasoning and automation
@@ -69,11 +71,12 @@
 |------|--------|---------|
 | **Architecture** | ✅ Complete | Clean, modular TypeScript design |
 | **MCP Protocol** | ✅ Complete | All transport types implemented |
-| **Testing** | ✅ Complete | 34/34 tests passing |
+| **Server Loading** | ✅ Complete | Dynamic loading from config JSON |
+| **LLM Routing** | ✅ Complete | OpenAI/Anthropic/OpenAI-compatible support |
 | **Error Handling** | ✅ Complete | Production-grade reliability |
 | **Documentation** | ✅ Complete | Comprehensive guides and references |
-| **Knowledge Discovery** | 🔄 Active | Core features working, enhancements in progress |
-| **UI/UX** | 🔄 Active | Basic functionality complete, polish ongoing |
+| **Testing** | ⚠️ Beta | Core functionality tested, some timeout issues |
+| **Public Release** | ✅ Complete | v0.1.1-beta available on GitHub |
 
 ## Technical Notes
 
@@ -89,5 +92,5 @@ See [CLAUDE.md](CLAUDE.md) for essential development commands and workflows.
 
 ---
 
-**Last Updated**: 2025-07-19  
-**Current Sprint**: Advanced link discovery and integration testing
+**Last Updated**: 2025-01-24  
+**Current Status**: Public Beta v0.1.1 Released - Gathering Community Feedback

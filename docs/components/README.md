@@ -1,5 +1,7 @@
 # Component Documentation
 
+> **📅 Updated for v0.1.1-beta** - Documentation reflects the current public beta release with multi-server dynamic loading and LLM-based routing.
+
 This directory contains comprehensive documentation for the Obsidian MCP Bridge plugin core components.
 
 ## Core Components
