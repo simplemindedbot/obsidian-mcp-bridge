@@ -1,21 +1,32 @@
 import { App, MarkdownView } from "obsidian";
-import { MCPClient } from "@/core/mcp-client";
+import { MCPClient, MCPToolParameters } from "@/core/mcp-client";
 import { KnowledgeEngine } from "@/knowledge/knowledge-engine";
 import { ChatMessage } from "@/types/settings";
+import { LLMQueryRouter, LLMProviderConfig } from "@/core/llm-router";
+import { MCPServerDiscovery } from "@/core/server-discovery";
 
 export class BridgeInterface {
   private app: App;
   private mcpClient: MCPClient;
   private knowledgeEngine: KnowledgeEngine;
+  private llmRouter?: LLMQueryRouter;
+  private serverDiscovery: MCPServerDiscovery;
+  private lastCatalogUpdate: Date = new Date(0);
 
   constructor(
     app: App,
     mcpClient: MCPClient,
     knowledgeEngine: KnowledgeEngine,
+    llmConfig?: LLMProviderConfig,
   ) {
     this.app = app;
     this.mcpClient = mcpClient;
     this.knowledgeEngine = knowledgeEngine;
+    this.serverDiscovery = new MCPServerDiscovery(mcpClient);
+    
+    if (llmConfig) {
+      this.llmRouter = new LLMQueryRouter(llmConfig);
+    }
   }
 
   async processQuery(query: string): Promise<ChatMessage> {
@@ -24,53 +35,12 @@ export class BridgeInterface {
     const startTime = Date.now();
 
     try {
-      // Determine intent and route to appropriate handler
-      const intent = this.classifyIntent(query);
-      let response: string;
-      let toolsCalled: string[] = [];
-
-      switch (intent) {
-        case "filesystem-list":
-          response = await this.handleFilesystemList(query);
-          toolsCalled.push("list_directory");
-          break;
-        case "filesystem-read":
-          response = await this.handleFilesystemRead(query);
-          toolsCalled.push("read_file");
-          break;
-        case "filesystem-write":
-          response = await this.handleFilesystemWrite(query);
-          toolsCalled.push("write_file");
-          break;
-        case "filesystem-search":
-          response = await this.handleFilesystemSearch(query);
-          toolsCalled.push("search_files");
-          break;
-        case "search":
-          response = await this.handleSearch(query);
-          toolsCalled.push("search");
-          break;
-        case "knowledge-discovery":
-          response = await this.handleKnowledgeDiscovery(query);
-          toolsCalled.push("knowledge-discovery");
-          break;
-        default:
-          response = await this.handleGeneral(query);
-          break;
+      // Use LLM router if available, otherwise fall back to static routing
+      if (this.llmRouter) {
+        return await this.processQueryWithLLM(query, startTime);
+      } else {
+        return await this.processQueryWithStaticRouting(query, startTime);
       }
-
-      const processingTime = Date.now() - startTime;
-
-      return {
-        id: Math.random().toString(36),
-        role: "assistant",
-        content: response,
-        timestamp: new Date(),
-        metadata: {
-          processingTime,
-          toolsCalled,
-        },
-      };
     } catch (error) {
       console.error("Error processing query:", error);
       return {
@@ -80,9 +50,178 @@ export class BridgeInterface {
         timestamp: new Date(),
         metadata: {
           processingTime: Date.now() - startTime,
+          error: true,
         },
       };
     }
+  }
+
+  /**
+   * Process query using intelligent LLM routing
+   */
+  private async processQueryWithLLM(query: string, startTime: number): Promise<ChatMessage> {
+    // Update server catalog if needed
+    await this.updateServerCatalogIfNeeded();
+
+    // Analyze query with LLM
+    if (!this.llmRouter) {
+      throw new Error('LLM router not initialized');
+    }
+    const routingPlan = await this.llmRouter.analyzeQuery(query);
+
+    if (routingPlan.confidence < 0.3) {
+      return {
+        id: Math.random().toString(36),
+        role: "assistant",
+        content: `I'm not sure how to help with that. ${routingPlan.reasoning}\n\nAvailable servers: ${this.mcpClient.getConnectedServers().join(", ")}`,
+        timestamp: new Date(),
+        metadata: {
+          processingTime: Date.now() - startTime,
+          routingPlan,
+          lowConfidence: true,
+        },
+      };
+    }
+
+    try {
+      // Execute the routing plan
+      const response = await this.mcpClient.callTool(
+        routingPlan.selectedServer,
+        routingPlan.selectedTool,
+        routingPlan.parameters as MCPToolParameters
+      );
+
+      // Format response content
+      let content = '';
+      const result = response.result as any;
+      if (result?.content) {
+        if (Array.isArray(result.content)) {
+          content = result.content.map((item: any) => item.text || item.content || String(item)).join('\n');
+        } else {
+          content = String(result.content);
+        }
+      } else {
+        content = JSON.stringify(response.result, null, 2);
+      }
+
+      return {
+        id: Math.random().toString(36),
+        role: "assistant",
+        content,
+        timestamp: new Date(),
+        metadata: {
+          processingTime: Date.now() - startTime,
+          routingPlan,
+          toolsCalled: [routingPlan.selectedTool],
+          server: routingPlan.selectedServer,
+        },
+      };
+    } catch (error) {
+      return {
+        id: Math.random().toString(36),
+        role: "assistant",
+        content: `Failed to execute ${routingPlan.selectedTool} on ${routingPlan.selectedServer}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date(),
+        metadata: {
+          processingTime: Date.now() - startTime,
+          routingPlan,
+          error: true,
+        },
+      };
+    }
+  }
+
+  /**
+   * Process query using static regex-based routing (fallback)
+   */
+  private async processQueryWithStaticRouting(query: string, startTime: number): Promise<ChatMessage> {
+    // Determine intent and route to appropriate handler
+    const intent = this.classifyIntent(query);
+    let response: string;
+    let toolsCalled: string[] = [];
+
+    switch (intent) {
+      case "filesystem-list":
+        response = await this.handleFilesystemList(query);
+        toolsCalled.push("list_directory");
+        break;
+      case "filesystem-read":
+        response = await this.handleFilesystemRead(query);
+        toolsCalled.push("read_file");
+        break;
+      case "filesystem-write":
+        response = await this.handleFilesystemWrite(query);
+        toolsCalled.push("write_file");
+        break;
+      case "filesystem-search":
+        response = await this.handleFilesystemSearch(query);
+        toolsCalled.push("search_files");
+        break;
+      case "search":
+        response = await this.handleSearch(query);
+        toolsCalled.push("search");
+        break;
+      case "knowledge-discovery":
+        response = await this.handleKnowledgeDiscovery(query);
+        toolsCalled.push("knowledge-discovery");
+        break;
+      default:
+        response = await this.handleGeneral(query);
+        break;
+    }
+
+    return {
+      id: Math.random().toString(36),
+      role: "assistant",
+      content: response,
+      timestamp: new Date(),
+      metadata: {
+        processingTime: Date.now() - startTime,
+        toolsCalled,
+        intent,
+        routingMethod: 'static',
+      },
+    };
+  }
+
+  /**
+   * Update server catalog if needed
+   */
+  private async updateServerCatalogIfNeeded(): Promise<void> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    if (this.lastCatalogUpdate < fiveMinutesAgo) {
+      try {
+        console.log('Updating server catalog for LLM routing...');
+        const catalog = await this.serverDiscovery.discoverAllServers();
+        console.log(`Discovered ${catalog.length} servers:`, catalog.map(c => `${c.serverId} (${c.tools.length} tools)`));
+        
+        if (this.llmRouter) {
+          await this.llmRouter.updateServerCatalog(catalog);
+          console.log('Server catalog updated for LLM routing');
+        }
+        this.lastCatalogUpdate = new Date();
+      } catch (error) {
+        console.error('Failed to update server catalog:', error);
+      }
+    }
+  }
+
+  /**
+   * Configure LLM provider
+   */
+  configureLLM(config: LLMProviderConfig): void {
+    this.llmRouter = new LLMQueryRouter(config);
+    // Force catalog update on next query
+    this.lastCatalogUpdate = new Date(0);
+    console.log('LLM routing configured with provider:', config.provider);
+  }
+
+  /**
+   * Check if LLM routing is available
+   */
+  hasLLMRouting(): boolean {
+    return !!this.llmRouter;
   }
 
   async insertContentAtCursor(content: string): Promise<void> {
@@ -228,7 +367,7 @@ export class BridgeInterface {
 
     try {
       const response = await this.mcpClient.callTool(filesystemServer, "list_directory", { path });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -260,7 +399,7 @@ export class BridgeInterface {
 
     try {
       const response = await this.mcpClient.callTool(filesystemServer, "read_file", { path });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -320,7 +459,7 @@ export class BridgeInterface {
         path: ".", 
         pattern 
       });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -349,7 +488,7 @@ export class BridgeInterface {
         "chat",
         { message: query },
       );
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       if (typeof content === 'string') {
         return content;
       } else if (Array.isArray(content)) {

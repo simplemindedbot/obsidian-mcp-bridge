@@ -47,6 +47,16 @@ export interface LoggingSettings {
   enableNetworkLogging: boolean;
 }
 
+export interface LLMSettings {
+  enableIntelligentRouting: boolean;
+  provider: "openai" | "anthropic" | "openai-compatible" | "local" | "disabled";
+  model: string;
+  baseUrl?: string;
+  maxTokens: number;
+  temperature: number;
+  fallbackToStaticRouting: boolean;
+}
+
 export interface MCPBridgeSettings {
   // Version for data migration
   version?: string;
@@ -68,6 +78,9 @@ export interface MCPBridgeSettings {
   // Logging Configuration
   logging: LoggingSettings;
 
+  // LLM Configuration
+  llm: LLMSettings;
+
   // Advanced Settings
   enableDebugMode: boolean;
   logLevel: "error" | "warn" | "info" | "debug";
@@ -78,7 +91,7 @@ export interface MCPBridgeSettings {
 }
 
 // Current plugin version for migration tracking
-export const CURRENT_SETTINGS_VERSION = "0.2.0";
+export const CURRENT_SETTINGS_VERSION = "0.3.0";
 
 export const DEFAULT_SETTINGS: MCPBridgeSettings = {
   version: CURRENT_SETTINGS_VERSION,
@@ -148,6 +161,15 @@ export const DEFAULT_SETTINGS: MCPBridgeSettings = {
     maxLogFiles: 5,
     enablePerformanceLogging: false,
     enableNetworkLogging: false,
+  },
+
+  llm: {
+    enableIntelligentRouting: false,
+    provider: "disabled",
+    model: "gpt-4",
+    maxTokens: 1000,
+    temperature: 0.1,
+    fallbackToStaticRouting: true,
   },
 
   enableDebugMode: false,
@@ -268,5 +290,18 @@ export interface ChatMessage {
     serverUsed?: string;
     toolsCalled?: string[];
     processingTime?: number;
+    server?: string;
+    intent?: string;
+    routingMethod?: string;
+    routingPlan?: {
+      intent: string;
+      selectedServer: string;
+      selectedTool: string;
+      parameters: Record<string, unknown>;
+      reasoning: string;
+      confidence: number;
+    };
+    error?: boolean;
+    lowConfidence?: boolean;
   };
 }

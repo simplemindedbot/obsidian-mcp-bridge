@@ -57,6 +57,9 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
     // Logging Section
     this.addLoggingSection();
 
+    // LLM Integration Section
+    this.addLLMSection();
+
     // Advanced Settings Section
     this.addAdvancedSection();
   }
@@ -427,6 +430,157 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
             new Notice("Logs cleared");
           });
       });
+  }
+
+  private addLLMSection(): void {
+    const { containerEl } = this;
+
+    containerEl.createEl("h3", { text: "LLM Integration" });
+    containerEl.createEl("p", {
+      text: "Configure AI language models for intelligent query routing and interpretation.",
+    });
+
+    // Enable intelligent routing
+    new Setting(containerEl)
+      .setName("Enable Intelligent Routing")
+      .setDesc("Use AI language models to analyze queries and route them to appropriate MCP servers")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.llm.enableIntelligentRouting)
+          .onChange(async (value) => {
+            this.plugin.settings.llm.enableIntelligentRouting = value;
+            await this.plugin.saveSettings();
+            this.display(); // Refresh to show/hide LLM settings
+          }),
+      );
+
+    // Only show LLM settings if intelligent routing is enabled
+    if (this.plugin.settings.llm.enableIntelligentRouting) {
+      // LLM Provider
+      new Setting(containerEl)
+        .setName("LLM Provider")
+        .setDesc("Choose the language model provider for query analysis")
+        .addDropdown((dropdown) =>
+          dropdown
+            .addOption("disabled", "Disabled")
+            .addOption("openai", "OpenAI")
+            .addOption("openai-compatible", "OpenAI Compatible (OpenRouter, etc.)")
+            .addOption("anthropic", "Anthropic")
+            .addOption("local", "Local (coming soon)")
+            .setValue(this.plugin.settings.llm.provider)
+            .onChange(async (value) => {
+              this.plugin.settings.llm.provider = value as "openai" | "anthropic" | "openai-compatible" | "local" | "disabled";
+              await this.plugin.saveSettings();
+              this.display(); // Refresh to show provider-specific settings
+            }),
+        );
+
+      // Show provider-specific settings
+      if (this.plugin.settings.llm.provider !== "disabled") {
+        // Model selection
+        new Setting(containerEl)
+          .setName("Model")
+          .setDesc("Specific model to use for query analysis")
+          .addText((text) =>
+            text
+              .setPlaceholder(this.getDefaultModel(this.plugin.settings.llm.provider))
+              .setValue(this.plugin.settings.llm.model)
+              .onChange(async (value) => {
+                this.plugin.settings.llm.model = value || this.getDefaultModel(this.plugin.settings.llm.provider);
+                await this.plugin.saveSettings();
+              }),
+          );
+
+        // API Key
+        if (this.plugin.settings.llm.provider !== "local") {
+          const keyPlaceholder = this.plugin.settings.llm.provider === "openai-compatible" ? 
+            "sk-or-... (OpenRouter) or provider-specific key" : "sk-...";
+          new Setting(containerEl)
+            .setName("API Key")
+            .setDesc(`Enter your ${this.plugin.settings.llm.provider === "openai-compatible" ? "OpenAI-compatible service" : this.plugin.settings.llm.provider} API key`)
+            .addText((text) =>
+              text
+                .setPlaceholder(keyPlaceholder)
+                .setValue(this.plugin.settings.apiKeys[this.plugin.settings.llm.provider] || "")
+                .onChange(async (value) => {
+                  this.plugin.settings.apiKeys[this.plugin.settings.llm.provider] = value;
+                  await this.plugin.saveSettings();
+                }),
+            );
+        }
+
+        // Base URL (for local/custom endpoints and OpenAI-compatible services)
+        if (this.plugin.settings.llm.provider === "local" || this.plugin.settings.llm.provider === "openai-compatible") {
+          const isOpenRouter = this.plugin.settings.llm.provider === "openai-compatible";
+          new Setting(containerEl)
+            .setName("Base URL")
+            .setDesc(isOpenRouter ? 
+              "API endpoint URL (e.g., https://openrouter.ai/api/v1 for OpenRouter)" : 
+              "URL for local LLM API endpoint")
+            .addText((text) =>
+              text
+                .setPlaceholder(isOpenRouter ? "https://openrouter.ai/api/v1" : "http://localhost:11434")
+                .setValue(this.plugin.settings.llm.baseUrl || "")
+                .onChange(async (value) => {
+                  this.plugin.settings.llm.baseUrl = value;
+                  await this.plugin.saveSettings();
+                }),
+            );
+        }
+
+        // Advanced LLM settings
+        new Setting(containerEl)
+          .setName("Max Tokens")
+          .setDesc("Maximum tokens for LLM responses (100-4000)")
+          .addSlider((slider) =>
+            slider
+              .setLimits(100, 4000, 100)
+              .setValue(this.plugin.settings.llm.maxTokens)
+              .setDynamicTooltip()
+              .onChange(async (value) => {
+                this.plugin.settings.llm.maxTokens = value;
+                await this.plugin.saveSettings();
+              }),
+          );
+
+        new Setting(containerEl)
+          .setName("Temperature")
+          .setDesc("Creativity level for LLM responses (0.0-1.0)")
+          .addSlider((slider) =>
+            slider
+              .setLimits(0, 1, 0.1)
+              .setValue(this.plugin.settings.llm.temperature)
+              .setDynamicTooltip()
+              .onChange(async (value) => {
+                this.plugin.settings.llm.temperature = value;
+                await this.plugin.saveSettings();
+              }),
+          );
+
+        // Fallback setting
+        new Setting(containerEl)
+          .setName("Fallback to Static Routing")
+          .setDesc("Use traditional regex-based routing when LLM analysis fails")
+          .addToggle((toggle) =>
+            toggle
+              .setValue(this.plugin.settings.llm.fallbackToStaticRouting)
+              .onChange(async (value) => {
+                this.plugin.settings.llm.fallbackToStaticRouting = value;
+                await this.plugin.saveSettings();
+              }),
+          );
+      }
+    }
+  }
+
+  private getDefaultModel(provider: string): string {
+    switch (provider) {
+      case "openai": return "gpt-4";
+      case "openai-compatible": return "gpt-3.5-turbo";
+      case "anthropic": return "claude-3-sonnet-20240229";
+      case "local": return "llama2";
+      default: return "gpt-4";
+    }
   }
 
   private addAdvancedSection(): void {

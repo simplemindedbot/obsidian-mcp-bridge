@@ -1,5 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { getLogger } from '@/utils/logger';
+import { MCPMessage, MCPResponse, MCPInitializeParams } from '@/types/mcp';
+import { TIMEOUTS, VERSION_INFO } from '@/utils/constants';
 
 interface CustomStdioTransportOptions {
   command: string;
@@ -16,7 +18,7 @@ export class CustomStdioTransport {
   private process: ChildProcess | null = null;
   private connected = false;
   private messageId = 1;
-  private pendingRequests = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+  private pendingRequests = new Map<string | number, { resolve: (value: MCPResponse) => void; reject: (error: Error) => void }>();
   private logger = getLogger();
 
   constructor(private options: CustomStdioTransportOptions) {}
@@ -31,7 +33,8 @@ export class CustomStdioTransport {
         ...(this.options.env || {}),
         // Ensure npm/npx can access global packages and find node
         NODE_PATH: process.env.NODE_PATH || '',
-        PATH: `/Users/scotcampbell/.nvm/versions/node/v22.17.0/bin:${process.env.PATH || ''}`,
+        // Use system PATH instead of hardcoded paths
+        PATH: process.env.PATH || '',
       },
       cwd: this.options.workingDirectory || process.cwd(),
       shell: true, // Use shell to ensure proper environment
@@ -50,7 +53,11 @@ export class CustomStdioTransport {
       });
 
       this.process.on('exit', (code, signal) => {
-        this.logger.info('CustomStdioTransport', `Process exited with code ${code}, signal ${signal}`);
+        if (signal === 'SIGTERM') {
+          this.logger.debug('CustomStdioTransport', `Process terminated gracefully (${signal})`);
+        } else {
+          this.logger.info('CustomStdioTransport', `Process exited with code ${code}, signal ${signal}`);
+        }
         this.connected = false;
       });
 
@@ -91,28 +98,28 @@ export class CustomStdioTransport {
     });
   }
 
-  private async sendInitialize(): Promise<any> {
-    const initMessage = {
+  private async sendInitialize(): Promise<MCPResponse> {
+    const initMessage: MCPMessage = {
       jsonrpc: '2.0',
       id: this.messageId++,
       method: 'initialize',
       params: {
-        protocolVersion: '2024-11-05',
+        protocolVersion: VERSION_INFO.MCP_PROTOCOL_VERSION,
         capabilities: {
           tools: {},
           resources: {},
         },
         clientInfo: {
-          name: 'obsidian-mcp-bridge',
-          version: '0.1.1',
+          name: VERSION_INFO.CLIENT_NAME,
+          version: VERSION_INFO.PLUGIN_VERSION,
         },
-      },
+      } as MCPInitializeParams,
     };
 
     return this.sendMessage(initMessage);
   }
 
-  private sendMessage(message: any): Promise<any> {
+  private sendMessage(message: MCPMessage): Promise<MCPResponse> {
     return new Promise((resolve, reject) => {
       if (!this.process || !this.process.stdin) {
         reject(new Error('Transport not connected'));
@@ -123,28 +130,28 @@ export class CustomStdioTransport {
       this.logger.debug('CustomStdioTransport', `Sending: ${messageStr.trim()}`);
 
       // Store pending request if it has an ID
-      if (message.id) {
+      if (message.id !== undefined) {
         this.pendingRequests.set(message.id, { resolve, reject });
         
         // Set timeout for request
         setTimeout(() => {
-          if (this.pendingRequests.has(message.id)) {
+          if (message.id !== undefined && this.pendingRequests.has(message.id)) {
             this.pendingRequests.delete(message.id);
             reject(new Error(`Request timeout for message ID ${message.id}`));
           }
-        }, 10000);
+        }, TIMEOUTS.DEFAULT_REQUEST_TIMEOUT);
       }
 
       this.process.stdin.write(messageStr, (error) => {
         if (error) {
           this.logger.error('CustomStdioTransport', 'Failed to write message', error);
-          if (message.id) {
+          if (message.id !== undefined) {
             this.pendingRequests.delete(message.id);
           }
           reject(error);
-        } else if (!message.id) {
+        } else if (message.id === undefined) {
           // For messages without ID (notifications), resolve immediately
-          resolve(undefined);
+          resolve({});
         }
       });
     });
@@ -157,7 +164,12 @@ export class CustomStdioTransport {
 
       // Handle response to pending request
       if (message.id && this.pendingRequests.has(message.id)) {
-        const { resolve, reject } = this.pendingRequests.get(message.id)!;
+        const pending = this.pendingRequests.get(message.id);
+        if (!pending) {
+          this.logger.warn('CustomStdioTransport', `No pending request found for message ID ${message.id}`);
+          return;
+        }
+        const { resolve, reject } = pending;
         this.pendingRequests.delete(message.id);
 
         if (message.error) {
@@ -173,7 +185,7 @@ export class CustomStdioTransport {
   }
 
   async callTool(name: string, parameters: any = {}): Promise<any> {
-    const message = {
+    const message: MCPMessage = {
       jsonrpc: '2.0',
       id: this.messageId++,
       method: 'tools/call',
@@ -187,7 +199,7 @@ export class CustomStdioTransport {
   }
 
   async listTools(): Promise<any> {
-    const message = {
+    const message: MCPMessage = {
       jsonrpc: '2.0',
       id: this.messageId++,
       method: 'tools/list',
@@ -198,7 +210,7 @@ export class CustomStdioTransport {
   }
 
   async listResources(): Promise<any> {
-    const message = {
+    const message: MCPMessage = {
       jsonrpc: '2.0',
       id: this.messageId++,
       method: 'resources/list',
@@ -208,8 +220,8 @@ export class CustomStdioTransport {
     return this.sendMessage(message);
   }
 
-  async readResource(uri: string): Promise<any> {
-    const message = {
+  async readResource(uri: string): Promise<MCPResponse> {
+    const message: MCPMessage = {
       jsonrpc: '2.0',
       id: this.messageId++,
       method: 'resources/read',
@@ -221,14 +233,35 @@ export class CustomStdioTransport {
     return this.sendMessage(message);
   }
 
+  async callMethod(method: string, params: Record<string, unknown> = {}): Promise<MCPResponse> {
+    const message: MCPMessage = {
+      jsonrpc: '2.0',
+      id: this.messageId++,
+      method,
+      params,
+    };
+
+    return this.sendMessage(message);
+  }
+
   async disconnect(): Promise<void> {
     if (this.process) {
-      this.process.kill();
+      // Gracefully terminate the process
+      this.process.kill('SIGTERM');
+      
+      // Give process time to exit gracefully, then force kill if needed
+      setTimeout(() => {
+        if (this.process && !this.process.killed) {
+          this.logger.debug('CustomStdioTransport', 'Force killing unresponsive process');
+          this.process.kill('SIGKILL');
+        }
+      }, TIMEOUTS.GRACEFUL_SHUTDOWN_TIMEOUT);
+      
       this.process = null;
     }
     this.connected = false;
     this.pendingRequests.clear();
-    this.logger.info('CustomStdioTransport', 'Disconnected');
+    this.logger.debug('CustomStdioTransport', 'Disconnected');
   }
 
   isConnected(): boolean {

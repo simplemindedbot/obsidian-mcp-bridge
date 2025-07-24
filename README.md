@@ -2,6 +2,8 @@
 
 🔗 A powerful bridge connecting Model Context Protocol (MCP) servers with Obsidian for enhanced knowledge discovery, AI-powered workflows, and intelligent content synthesis.
 
+> **🚧 Beta Release v0.1.1** - This is an early public release. Please report issues and provide feedback to help improve the plugin!
+
 ## ✨ Features
 
 ### 🚀 **Production-Ready Core**
@@ -186,17 +188,20 @@ sequenceDiagram
 ## 🛣️ Roadmap
 
 ### ✅ Foundation Complete
+
 - Complete MCP Protocol implementation (stdio, WebSocket, SSE)
 - Production-grade error handling and health monitoring
 - Comprehensive testing (34 tests, 100% pass rate)
 - TypeScript architecture with strict mode
 
 ### 🔄 Active Development
+
 - Advanced link discovery between notes and external content
 - Enhanced UI for search results and content insertion
 - Integration testing with real MCP servers
 
 ### 🔮 Future Features
+
 - Knowledge graph visualization
 - Workflow automation and templates
 - Plugin SDK for community extensions
@@ -252,8 +257,9 @@ npm run format
 ```
 
 ### Development Status
+
 - **Build**: ✅ Clean TypeScript compilation
-- **Tests**: ✅ 34/34 passing (100% success rate)
+- **Tests**: ⚠️ Core functionality tested (some timeout issues in edge cases)
 - **Quality**: ✅ ESLint security rules and Prettier formatting
 - **Documentation**: ✅ Comprehensive guides and API references
 
@@ -266,6 +272,17 @@ npm run format
 | **Knowledge Engine** | Content discovery and relevance scoring |
 | **UI Components** | Settings interface and chat view |
 | **Testing Suite** | 34 unit tests with comprehensive coverage |
+
+## ⚠️ Known Limitations (Beta)
+
+This is a beta release with some known limitations:
+
+- **Test Suite**: Some unit tests have timeout issues in mock scenarios (core functionality works correctly)
+- **LLM Routing**: Requires API keys for intelligent routing (falls back to static routing when disabled)
+- **Performance**: Initial server discovery may take a few seconds on first load
+- **Error Handling**: Some edge case error messages could be more user-friendly
+
+We're actively working on these improvements for v0.2.0.
 
 ## 📄 License
 

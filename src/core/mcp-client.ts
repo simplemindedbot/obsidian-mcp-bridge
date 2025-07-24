@@ -1,7 +1,6 @@
 import {
   MCPBridgeSettings,
   MCPServerConfig,
-  MCPResponse,
 } from "@/types/settings";
 import { ChildProcess } from "child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -11,6 +10,26 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { getLogger } from "@/utils/logger";
 import { PathResolver } from "@/utils/path-resolver";
 import { CustomStdioTransport } from "./custom-stdio-transport";
+import { MCPResponse } from '@/types/mcp';
+import { RETRY_CONFIG, TIMEOUTS } from '@/utils/constants';
+
+// Connection types
+interface MCPConnectionBase {
+  serverId: string;
+  config: MCPServerConfig;
+  isConnected(): boolean;
+}
+
+interface CustomStdioConnection extends MCPConnectionBase {
+  customTransport: CustomStdioTransport;
+}
+
+interface SdkConnection extends MCPConnectionBase {
+  client: Client;
+  transport: StdioClientTransport | WebSocketClientTransport | SSEClientTransport;
+}
+
+// type MCPConnectionType = CustomStdioConnection | SdkConnection;
 
 interface RetryOptions {
   maxAttempts: number;
@@ -29,7 +48,7 @@ interface ConnectionHealth {
 
 // MCP-specific types for better type safety
 export interface MCPToolParameters {
-  [key: string]: string | number | boolean | object | null | undefined;
+  [key: string]: unknown;
 }
 
 export interface MCPResource {
@@ -57,10 +76,10 @@ export class MCPClient {
   private isInitialized = false;
   private healthMonitor: Map<string, ConnectionHealth> = new Map();
   private retryOptions: RetryOptions = {
-    maxAttempts: 3,
-    baseDelay: 1000,
-    maxDelay: 30000,
-    backoffFactor: 2,
+    maxAttempts: RETRY_CONFIG.MAX_ATTEMPTS,
+    baseDelay: RETRY_CONFIG.BASE_DELAY,
+    maxDelay: RETRY_CONFIG.MAX_DELAY,
+    backoffFactor: RETRY_CONFIG.BACKOFF_FACTOR,
   };
 
   constructor(settings: MCPBridgeSettings) {
@@ -250,6 +269,35 @@ export class MCPClient {
     return this.connections.has(serverId);
   }
 
+  async callServerMethod(serverId: string, method: string, params: any = {}): Promise<any> {
+    const connection = this.connections.get(serverId);
+    if (!connection) {
+      throw new Error(`No connection to server: ${serverId}`);
+    }
+
+    const connectionAny = connection as any;
+    if (this.isCustomStdioConnection(connectionAny)) {
+      return await connectionAny.customTransport.callMethod(method, params);
+    } else if (this.isSdkConnection(connection)) {
+      // For SDK-based connections, we'd need to implement raw method calls
+      throw new Error(`Raw method calls not supported for SDK-based connections to ${serverId}`);
+    } else {
+      throw new Error(`No available transport for server ${serverId}`);
+    }
+  }
+
+  private isCustomStdioConnection(connection: any): connection is CustomStdioConnection {
+    return connection !== null && typeof connection === 'object' && 'customTransport' in connection;
+  }
+
+  private isSdkConnection(connection: any): connection is SdkConnection {
+    return connection !== null && typeof connection === 'object' && 'client' in connection;
+  }
+
+  async listServerTools(serverId: string): Promise<any> {
+    return this.callServerMethod(serverId, 'tools/list', {});
+  }
+
   getServerHealth(serverId: string): ConnectionHealth | undefined {
     return this.healthMonitor.get(serverId);
   }
@@ -334,7 +382,7 @@ class MCPConnection {
   async connect(): Promise<void> {
     console.log(`Connecting to MCP server: ${this.serverId}`);
 
-    const timeout = this.config.timeout || 10000; // Default 10 second timeout
+    const timeout = this.config.timeout || TIMEOUTS.DEFAULT_CONNECTION_TIMEOUT;
 
     try {
       const connectPromise = this.performConnection();
@@ -416,7 +464,9 @@ class MCPConnection {
       try {
         // List available tools first to validate the tool exists
         const tools = await this.customTransport.listTools();
-        const tool = tools.tools?.find((t: any) => t.name === toolName);
+        const tool = tools.result && 'tools' in tools.result 
+          ? (tools.result as { tools: Array<{ name: string }> }).tools.find((t) => t.name === toolName)
+          : undefined;
 
         if (!tool) {
           throw new Error(
@@ -483,7 +533,10 @@ class MCPConnection {
       try {
         // List available resources using the custom transport
         const resources = await this.customTransport.listResources();
-        return (resources.resources || []).map((resource: any) => ({
+        const resourceList = resources.result && 'resources' in resources.result
+          ? (resources.result as { resources: Array<{ uri: string; name?: string; description?: string; mimeType?: string }> }).resources
+          : [];
+        return resourceList.map((resource) => ({
           uri: resource.uri,
           name: resource.name,
           description: resource.description,

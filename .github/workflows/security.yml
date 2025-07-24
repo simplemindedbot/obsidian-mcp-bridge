@@ -13,6 +13,10 @@ jobs:
   gitleaks:
     name: Secret Detection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,11 +27,13 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   dependency-scan:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -73,7 +79,7 @@ jobs:
           npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
 
       - name: Upload ESLint results to GitHub
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: eslint-results.sarif

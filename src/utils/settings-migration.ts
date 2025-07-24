@@ -32,6 +32,11 @@ export class SettingsMigration {
       migratedSettings = await this.migrateToV0_2_0(migratedSettings);
     }
 
+    // Migration from 0.2.x to 0.3.0: Add LLM configuration
+    if (this.isVersionLessThan(currentVersion, "0.3.0")) {
+      migratedSettings = await this.migrateToV0_3_0(migratedSettings);
+    }
+
     // Update version to current
     migratedSettings.version = CURRENT_SETTINGS_VERSION;
 
@@ -109,6 +114,33 @@ export class SettingsMigration {
           );
         }
       }
+    }
+
+    return settings;
+  }
+
+  /**
+   * Migration to version 0.3.0: Add LLM configuration
+   */
+  private async migrateToV0_3_0(
+    settings: MCPBridgeSettings,
+  ): Promise<MCPBridgeSettings> {
+    console.log(
+      "MCP Bridge: Running migration to v0.3.0 (LLM integration)",
+    );
+
+    // Add LLM settings if they don't exist
+    const settingsWithLlm = settings as MCPBridgeSettings & { llm?: unknown };
+    if (!settingsWithLlm.llm) {
+      settingsWithLlm.llm = {
+        enableIntelligentRouting: false,
+        provider: "disabled",
+        model: "gpt-4",
+        maxTokens: 1000,
+        temperature: 0.1,
+        fallbackToStaticRouting: true,
+      };
+      console.log("MCP Bridge: Added default LLM configuration");
     }
 
     return settings;
