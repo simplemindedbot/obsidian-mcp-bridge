@@ -192,9 +192,13 @@ export class BridgeInterface {
     
     if (this.lastCatalogUpdate < fiveMinutesAgo) {
       try {
+        console.log('Updating server catalog for LLM routing...');
         const catalog = await this.serverDiscovery.discoverAllServers();
+        console.log(`Discovered ${catalog.length} servers:`, catalog.map(c => `${c.serverId} (${c.tools.length} tools)`));
+        
         if (this.llmRouter) {
           await this.llmRouter.updateServerCatalog(catalog);
+          console.log('Server catalog updated for LLM routing');
         }
         this.lastCatalogUpdate = new Date();
       } catch (error) {
@@ -210,6 +214,7 @@ export class BridgeInterface {
     this.llmRouter = new LLMQueryRouter(config);
     // Force catalog update on next query
     this.lastCatalogUpdate = new Date(0);
+    console.log('LLM routing configured with provider:', config.provider);
   }
 
   /**

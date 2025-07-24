@@ -160,7 +160,12 @@ export class LLMQueryRouter {
    * Build the LLM prompt for query analysis
    */
   private buildAnalysisPrompt(query: string, capabilities: string): string {
+    const connectedCount = this.serverCatalog.size;
+    const availableServers = Array.from(this.serverCatalog.keys());
+    
     return `You are an intelligent query router for MCP (Model Context Protocol) servers. Your job is to analyze user queries and determine which MCP server and tool should handle the request.
+
+Currently Connected Servers: ${connectedCount} (${availableServers.join(', ')})
 
 Available MCP Capabilities:
 ${capabilities}
@@ -178,12 +183,21 @@ Analyze this query and respond with a JSON object containing:
 }
 
 Important guidelines:
-- Only use servers and tools that are listed in the available capabilities
+- Only use servers and tools that are listed in the available capabilities above
 - Extract specific parameters from the query (file paths, search terms, etc.)
 - If the query is ambiguous, choose the most likely interpretation
 - If no good match exists, set confidence to 0 and explain in reasoning
-- For file operations, prefer filesystem servers
-- For search operations, prefer search-capable servers
+- For file operations, prefer filesystem servers  
+- For Git operations, prefer git servers
+- For web search operations, prefer brave-search or web-search servers
+- For database operations, prefer sqlite servers
+- Consider the specific tools each server provides when making routing decisions
+
+Server Routing Preferences:
+- filesystem: file/directory operations (list_directory, read_file, write_file, search_files)
+- git: version control operations (git_status, git_log, git_diff, git_commit)
+- brave-search/web-search: web searches and online information lookup
+- sqlite: database queries and data operations
 
 Respond with only valid JSON.`;
   }
@@ -382,25 +396,79 @@ Respond with only valid JSON.`;
     
     const queryLower = query.toLowerCase();
     
-    // Simple heuristics as fallback
+    // Simple heuristics as fallback - check multiple server types
     for (const server of this.serverCatalog.values()) {
       if (server.status !== 'connected') continue;
+      
+      // Git operations
+      if (server.serverId === 'git' && 
+          (queryLower.includes('git') || queryLower.includes('commit') || 
+           queryLower.includes('status') || queryLower.includes('log') ||
+           queryLower.includes('diff') || queryLower.includes('branch'))) {
+        
+        let toolName = 'git_status';
+        let parameters = {};
+        
+        if (queryLower.includes('log') || queryLower.includes('history')) {
+          toolName = 'git_log';
+        } else if (queryLower.includes('diff')) {
+          toolName = 'git_diff';
+        }
+        
+        return {
+          intent: 'Git operation',
+          selectedServer: server.serverId,
+          selectedTool: toolName,
+          parameters,
+          reasoning: 'Fallback heuristic analysis for Git operations',
+          confidence: 0.6,
+        };
+      }
+      
+      // Web search operations
+      if ((server.serverId === 'brave-search' || server.serverId === 'web-search') && 
+          (queryLower.includes('search') || queryLower.includes('find') || 
+           queryLower.includes('lookup') || queryLower.includes('web'))) {
+        
+        const searchMatch = query.match(/(?:search|find|lookup)\\s+(.+)/i);
+        const searchTerm = searchMatch ? searchMatch[1].trim() : query;
+        
+        return {
+          intent: 'Web search',
+          selectedServer: server.serverId,
+          selectedTool: 'search',
+          parameters: { query: searchTerm },
+          reasoning: 'Fallback heuristic analysis for web search',
+          confidence: 0.7,
+        };
+      }
       
       // Filesystem operations
       if (server.serverId === 'filesystem' && 
           (queryLower.includes('file') || queryLower.includes('directory') || 
            queryLower.includes('read') || queryLower.includes('write') ||
-           queryLower.includes('list') || queryLower.includes('search'))) {
+           queryLower.includes('list') || queryLower.includes('ls'))) {
         
         let toolName = 'list_directory';
-        let parameters = { path: '.' };
+        let parameters: Record<string, unknown> = { path: '.' };
         
         if (queryLower.includes('read') || queryLower.includes('open')) {
           toolName = 'read_file';
-          // Try to extract file path
           const pathMatch = query.match(/(?:read|open)\\s+([^\\s]+)/i);
           if (pathMatch) {
             parameters = { path: pathMatch[1] };
+          }
+        } else if (queryLower.includes('write') || queryLower.includes('create')) {
+          toolName = 'write_file';
+          const writeMatch = query.match(/(?:write|create)\\s+(.+)\\s+with\\s+(.+)/i);
+          if (writeMatch) {
+            parameters = { path: writeMatch[1].trim(), content: writeMatch[2].trim() };
+          }
+        } else if (queryLower.includes('search') || queryLower.includes('find')) {
+          toolName = 'search_files';
+          const searchMatch = query.match(/(?:search|find)\\s+(.+)/i);
+          if (searchMatch) {
+            parameters = { path: '.', pattern: searchMatch[1].trim() };
           }
         }
         
@@ -409,8 +477,39 @@ Respond with only valid JSON.`;
           selectedServer: server.serverId,
           selectedTool: toolName,
           parameters,
-          reasoning: 'Fallback heuristic analysis',
+          reasoning: 'Fallback heuristic analysis for filesystem operations',
           confidence: 0.5,
+        };
+      }
+      
+      // SQLite operations
+      if (server.serverId === 'sqlite' && 
+          (queryLower.includes('database') || queryLower.includes('query') || 
+           queryLower.includes('sql') || queryLower.includes('table'))) {
+        
+        return {
+          intent: 'Database operation',
+          selectedServer: server.serverId,
+          selectedTool: 'query',
+          parameters: { sql: query },
+          reasoning: 'Fallback heuristic analysis for database operations',
+          confidence: 0.6,
+        };
+      }
+    }
+    
+    // If no specific server matches, try to use any available server
+    const connectedServers = Array.from(this.serverCatalog.values()).filter(s => s.status === 'connected');
+    if (connectedServers.length > 0) {
+      const firstServer = connectedServers[0];
+      if (firstServer.tools.length > 0) {
+        return {
+          intent: 'General query',
+          selectedServer: firstServer.serverId,
+          selectedTool: firstServer.tools[0].name,
+          parameters: { query },
+          reasoning: `No specific match found, using first available server (${firstServer.serverId}) and tool (${firstServer.tools[0].name})`,
+          confidence: 0.2,
         };
       }
     }
@@ -420,7 +519,7 @@ Respond with only valid JSON.`;
       selectedServer: '',
       selectedTool: '',
       parameters: {},
-      reasoning: 'No suitable server/tool found',
+      reasoning: 'No suitable server/tool found in fallback analysis',
       confidence: 0,
     };
   }
