@@ -1,6 +1,6 @@
 # Release Notes
 
-## v0.1.1-beta (2025-01-24) 🚀
+## v0.1.1-beta (2025-07-23) 🚀
 
 ### 🎉 First Public Beta Release
 
@@ -9,24 +9,28 @@ We're excited to announce the first public beta of Obsidian MCP Bridge! This rel
 ### ✨ Major Features
 
 #### 🔗 **Dynamic Multi-Server Support**
+
 - **Auto-Discovery**: Automatically loads all MCP servers from configuration
 - **Multi-Transport**: Support for stdio, WebSocket, and SSE connections
 - **Server Types**: File system, Git, web search, SQLite, and custom servers
 - **Health Monitoring**: Real-time connection status and auto-reconnection
 
 #### 🧠 **Intelligent LLM-Based Routing**
+
 - **Smart Analysis**: Uses OpenAI, Anthropic, or OpenAI-compatible APIs to understand user intent
 - **Context-Aware**: Routes queries to the most appropriate server and tool
 - **Fallback Logic**: Graceful degradation to static routing when LLM is unavailable
 - **Multi-Server Queries**: Handles complex requests across multiple data sources
 
 #### 🔍 **Advanced Query Processing**
+
 - **Natural Language**: "search the web for TypeScript tutorials" → routes to web search
 - **File Operations**: "list files in current directory" → routes to filesystem server
 - **Git Operations**: "show git status" → routes to git server
 - **Database Queries**: "query user database" → routes to SQLite server
 
 #### 🛡️ **Security & Quality**
+
 - **Secret Protection**: API keys are redacted from logs and never committed
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Type Safety**: Full TypeScript implementation with strict mode
@@ -95,7 +99,7 @@ This is a beta release with some known limitations:
 ### 📚 **Documentation**
 
 - [Installation Guide](INSTALL.md)
-- [Security Guidelines](SECURITY.md) 
+- [Security Guidelines](SECURITY.md)
 - [Configuration Examples](examples/configs/)
 - [Component Documentation](docs/components/)
 
@@ -111,6 +115,7 @@ We welcome contributions! Please see our [development setup](README.md#developme
 ### 🙏 **Acknowledgments**
 
 This project builds on excellent work from:
+
 - [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) for MCP client architecture patterns
 - [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
 - The Obsidian community for inspiration and feedback

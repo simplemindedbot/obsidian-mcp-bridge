@@ -44,11 +44,13 @@ This is the most straightforward method for end users.
 
 #### Step 1: Get the Plugin Files
 
-**Option A: Download Beta Release (Easiest)**
+#### Option A: Download Beta Release (Easiest)
+
 1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.1.1-beta)
 2. Download `main.js` and `manifest.json`
 
-**Option B: Build from Source**
+#### Option B: Build from Source
+
 ```bash
 # From the cloned repository directory
 npm install
@@ -231,7 +233,7 @@ npm install -g @modelcontextprotocol/server-postgres
 
 2. **Try a Natural Language Query:**
 
-   ```
+   ``` txt
    "find my notes about productivity"
    "search for recent files"
    "what have I written about AI?"
@@ -250,7 +252,7 @@ npm install -g @modelcontextprotocol/server-postgres
 
 2. **Test MCP Server Integration:**
 
-   ```
+   ``` txt
    "list files in my documents folder"
    "show me recent git commits"
    "search the web for machine learning papers"
