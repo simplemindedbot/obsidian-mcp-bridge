@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { getLogger } from "./logger";
+import { platform } from "os";
 
 const execAsync = promisify(exec);
 
@@ -12,17 +13,37 @@ export interface ExecutableInfo {
 
 export class PathResolver {
   private static cache = new Map<string, string>();
-  private static readonly COMMON_PATHS = [
-    "/usr/local/bin",
-    "/opt/homebrew/bin",
-    "/usr/bin",
-    "/bin",
-    "/opt/local/bin",
-    "/usr/local/opt/node/bin",
-    process.env.HOME + "/.nvm/current/bin",
-    process.env.HOME + "/.npm-global/bin",
-    process.env.HOME + "/node_modules/.bin",
-  ];
+  private static readonly COMMON_PATHS = PathResolver.getCommonPaths();
+
+  private static getCommonPaths(): string[] {
+    const isWindows = platform() === 'win32';
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    
+    if (isWindows) {
+      return [
+        process.env.ProgramFiles + "\\nodejs",
+        process.env["ProgramFiles(x86)"] + "\\nodejs", 
+        process.env.APPDATA + "\\npm",
+        process.env.LOCALAPPDATA + "\\Microsoft\\WindowsApps",
+        "C:\\Program Files\\nodejs",
+        "C:\\Program Files (x86)\\nodejs",
+        homeDir + "\\AppData\\Roaming\\npm",
+        homeDir + "\\.npm-global",
+      ].filter(Boolean);
+    } else {
+      return [
+        "/usr/local/bin",
+        "/opt/homebrew/bin",
+        "/usr/bin", 
+        "/bin",
+        "/opt/local/bin",
+        "/usr/local/opt/node/bin",
+        homeDir + "/.nvm/current/bin",
+        homeDir + "/.npm-global/bin",
+        homeDir + "/node_modules/.bin",
+      ].filter(Boolean);
+    }
+  }
 
   /**
    * Find the full path to an executable
@@ -44,10 +65,12 @@ export class PathResolver {
 
     logger.debug("PathResolver", `Searching for executable: ${command}`);
 
-    // Method 1: Try 'which' command (most reliable)
+    // Method 1: Try platform-specific command to find executable
+    const isWindows = platform() === 'win32';
     try {
-      const { stdout } = await execAsync(`which ${command}`);
-      const path = stdout.trim();
+      const findCommand = isWindows ? `where ${command}` : `which ${command}`;
+      const { stdout } = await execAsync(findCommand);
+      const path = stdout.trim().split('\n')[0]; // Take first result on Windows
       if (path && path !== "") {
         this.cache.set(command, path);
         logger.info("PathResolver", `Found ${command} at: ${path}`);
@@ -56,27 +79,29 @@ export class PathResolver {
     } catch (error) {
       logger.debug(
         "PathResolver",
-        `'which' command failed for ${command}`,
-        { command, context: { type: 'which_command_failed' } }
+        `Platform find command failed for ${command}`,
+        { command, context: { type: 'platform_find_failed' } }
       );
     }
 
-    // Method 2: Try 'whereis' command (Linux)
-    try {
-      const { stdout } = await execAsync(`whereis ${command}`);
-      const parts = stdout.split(":")[1]?.trim().split(" ");
-      if (parts && parts[0]) {
-        const path = parts[0];
-        this.cache.set(command, path);
-        logger.info("PathResolver", `Found ${command} with whereis: ${path}`);
-        return path;
+    // Method 2: Try 'whereis' command (Linux only)
+    if (!isWindows) {
+      try {
+        const { stdout } = await execAsync(`whereis ${command}`);
+        const parts = stdout.split(":")[1]?.trim().split(" ");
+        if (parts && parts[0]) {
+          const path = parts[0];
+          this.cache.set(command, path);
+          logger.info("PathResolver", `Found ${command} with whereis: ${path}`);
+          return path;
+        }
+      } catch (error) {
+        logger.debug(
+          "PathResolver",
+          `'whereis' command failed for ${command}`,
+          { command, context: { type: 'whereis_command_failed' } }
+        );
       }
-    } catch (error) {
-      logger.debug(
-        "PathResolver",
-        `'whereis' command failed for ${command}`,
-        { command, context: { type: 'whereis_command_failed' } }
-      );
     }
 
     // Method 3: Check common paths manually
@@ -84,8 +109,15 @@ export class PathResolver {
       if (!dir) continue;
 
       try {
-        const fullPath = `${dir}/${command}`;
-        await execAsync(`test -f "${fullPath}" && test -x "${fullPath}"`);
+        const separator = isWindows ? '\\' : '/';
+        const extension = isWindows && !command.includes('.') ? '.exe' : '';
+        const fullPath = `${dir}${separator}${command}${extension}`;
+        
+        const testCommand = isWindows 
+          ? `if exist "${fullPath}" echo found`
+          : `test -f "${fullPath}" && test -x "${fullPath}"`;
+          
+        await execAsync(testCommand);
         this.cache.set(command, fullPath);
         logger.info(
           "PathResolver",
@@ -101,8 +133,15 @@ export class PathResolver {
     const envPaths = await this.getEnvironmentPaths();
     for (const dir of envPaths) {
       try {
-        const fullPath = `${dir}/${command}`;
-        await execAsync(`test -f "${fullPath}" && test -x "${fullPath}"`);
+        const separator = isWindows ? '\\' : '/';
+        const extension = isWindows && !command.includes('.') ? '.exe' : '';
+        const fullPath = `${dir}${separator}${command}${extension}`;
+        
+        const testCommand = isWindows 
+          ? `if exist "${fullPath}" echo found`
+          : `test -f "${fullPath}" && test -x "${fullPath}"`;
+          
+        await execAsync(testCommand);
         this.cache.set(command, fullPath);
         logger.info(
           "PathResolver",
@@ -123,14 +162,13 @@ export class PathResolver {
    */
   private static async getEnvironmentPaths(): Promise<string[]> {
     const paths: string[] = [];
+    const isWindows = platform() === 'win32';
 
-    // Try to get PATH from shell
+    // Try to get PATH from environment
     try {
-      const { stdout } = await execAsync("echo $PATH");
-      const pathDirs = stdout
-        .trim()
-        .split(":")
-        .filter((p) => p);
+      const envPath = process.env.PATH || '';
+      const separator = isWindows ? ';' : ':';
+      const pathDirs = envPath.split(separator).filter((p) => p);
       paths.push(...pathDirs);
     } catch (error) {
       // Ignore if we can't get PATH
@@ -141,15 +179,16 @@ export class PathResolver {
       const { stdout } = await execAsync("npm config get prefix");
       const npmPrefix = stdout.trim();
       if (npmPrefix) {
-        paths.push(`${npmPrefix}/bin`);
+        const binDir = isWindows ? npmPrefix : `${npmPrefix}/bin`;
+        paths.push(binDir);
       }
     } catch (error) {
       // Ignore if npm isn't available
     }
 
-    // Try node version manager paths
-    const homeDir = process.env.HOME;
-    if (homeDir) {
+    // Try node version manager paths (Unix-like systems only)
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    if (homeDir && !isWindows) {
       // nvm paths
       try {
         const { stdout } = await execAsync(
@@ -294,9 +333,14 @@ export class PathResolver {
    */
   static async resolveCommand(command: string): Promise<string> {
     const logger = getLogger();
+    const isWindows = platform() === 'win32';
 
     // If it's already a full path, use it as-is
-    if (command.startsWith("/")) {
+    const isFullPath = isWindows 
+      ? (command.includes(':') || command.startsWith('\\\\'))  // Windows: C:\ or UNC path
+      : command.startsWith('/');  // Unix: absolute path
+    
+    if (isFullPath) {
       logger.debug("PathResolver", `Using provided full path: ${command}`);
       return command;
     }

@@ -28,10 +28,12 @@ npm run security:check   # Full security audit (npm audit + secret scan)
 ## Git Workflow & Security
 
 ### Branch Strategy
+
 - **`develop`** - Active development branch (work here by default)
 - **`main`** - Production/release branch (protected, requires PR)
 
 ### Development Workflow
+
 ```bash
 # Standard workflow
 git checkout develop && git pull origin develop
@@ -47,18 +49,21 @@ git push origin feature/feature-name
 ### Security Protocol (MANDATORY)
 
 **Before EVERY commit:**
+
 ```bash
 npm run security:scan    # Must pass - no secrets detected
 npm run lint            # Must pass - no security issues
 ```
 
 **NEVER commit:**
+
 - Real API keys, tokens, passwords
 - Database connection strings
 - Private keys or certificates  
 - Production URLs or credentials
 
 **Environment Variables:**
+
 ```bash
 cp .env.example .env.local    # Use for development secrets
 # .env.local is gitignored - never commit it
@@ -82,6 +87,7 @@ cp .env.example .env.local    # Use for development secrets
 | **UI Components** | `src/ui/` | Settings tab, chat view (uses `@/` imports) |
 
 ### Key Features
+
 - **Multi-transport MCP support** - stdio, WebSocket, SSE connections
 - **Dynamic path resolution** - Solves ENOENT errors across platforms  
 - **Settings migration system** - Automatic upgrades between versions
@@ -89,17 +95,20 @@ cp .env.example .env.local    # Use for development secrets
 - **Comprehensive testing** - 34+ unit tests with Vitest
 
 ### Integration Points
+
 - Ribbon icon: `message-circle`
 - Chat view: Right sidebar by default
 - Command palette: Knowledge discovery commands
 - Settings: MCP server configuration with working directories
 
 ### Reference Architecture
+
 Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) patterns for event-driven MCP client implementation.
 
 ## Development Guidelines
 
 ### Security Requirements
+
 1. **Never generate real secrets** - Use placeholders like `"your-api-key-here"`
 2. **Run security scans** - `npm run security:scan` before every commit
 3. **Validate all inputs** - Ensure proper sanitization and validation
@@ -107,6 +116,7 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 5. **Use environment variables** - Reference `.env.example` for proper patterns
 
 ### Code Quality Standards
+
 - Follow ESLint security rules (configured in `.eslintrc.js`)
 - Write tests for new features using Vitest
 - Use TypeScript strict mode - avoid `any` types when possible
@@ -114,6 +124,7 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 - Follow established file naming and import patterns
 
 ### Important Files
+
 | File | Purpose |
 |------|---------|
 | `SECURITY.md` | Comprehensive security guidelines |
@@ -126,6 +137,9 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 ## Current Status
 
 ### ✅ Recently Completed (Latest)
+
+- **OpenAI-Compatible LLM Support** - Added OpenRouter and custom endpoint support, fixed CORS issues
+- **Cross-Platform Compatibility** - Removed all hardcoded paths, added Windows/macOS/Linux support
 - **Security Infrastructure** - ESLint configuration, code scanning fixes, GitHub Actions security workflow
 - **Settings Migration System** - Version-based upgrades, working directory separation
 - **Enhanced UI** - Individual argument inputs, dynamic add/remove functionality
@@ -133,6 +147,7 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 - **Testing Coverage** - 34+ unit tests with Vitest, comprehensive error handling
 
 ### 🔄 Development Priorities
+
 1. **Plugin Testing** - Verify in real Obsidian environment
 2. **MCP Server Integration** - Test filesystem, web search, and git servers
 3. **Performance Optimization** - Improve connection handling and error recovery
@@ -140,6 +155,7 @@ Based on [MCP-SuperAssistant](https://github.com/srbhptl39/MCP-SuperAssistant) p
 ## Claude Code Instructions
 
 ### Mandatory Workflow
+
 ```bash
 # Before every commit (REQUIRED)
 npm run security:scan    # Must pass
@@ -151,15 +167,27 @@ git checkout develop
 ```
 
 ### Critical Rules
+
 - **NEVER commit real secrets** - API keys, tokens, passwords, connection strings
 - **ALWAYS use placeholders** - `"your-api-key-here"`, `"your-token-here"`
 - **WORK on `develop` branch** - Unless explicitly told otherwise
 - **EDIT existing files** - Don't create new files unless absolutely necessary
 - **NO unsolicited documentation** - Don't create .md files unless requested
+- **ENSURE CROSS-PLATFORM COMPATIBILITY** - No hardcoded system-specific paths, directories, or shortcuts
 
 ### Development Standards
+
 - Run `npm run build` before testing changes
 - Test settings migration after schema changes  
 - Verify MCP server connections after config updates
 - Follow existing code patterns and import styles
 - Use `.env.local` for development secrets (gitignored)
+
+### Cross-Platform Compatibility Requirements
+
+- **Use `os.platform()` for platform detection** - Never hardcode `'win32'`, `'darwin'`, `'linux'`
+- **Use environment variables for paths** - `process.env.HOME || process.env.USERPROFILE`
+- **Handle path separators correctly** - `path.sep` or conditional `'\\' : '/'`
+- **Use proper command resolution** - `where` on Windows, `which` on Unix
+- **Include file extensions on Windows** - Add `.exe` for executables when needed
+- **Test path logic across platforms** - Windows, macOS, Linux compatibility required

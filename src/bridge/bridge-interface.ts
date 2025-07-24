@@ -1,5 +1,5 @@
 import { App, MarkdownView } from "obsidian";
-import { MCPClient } from "@/core/mcp-client";
+import { MCPClient, MCPToolParameters } from "@/core/mcp-client";
 import { KnowledgeEngine } from "@/knowledge/knowledge-engine";
 import { ChatMessage } from "@/types/settings";
 import { LLMQueryRouter, LLMProviderConfig } from "@/core/llm-router";
@@ -64,7 +64,10 @@ export class BridgeInterface {
     await this.updateServerCatalogIfNeeded();
 
     // Analyze query with LLM
-    const routingPlan = await this.llmRouter!.analyzeQuery(query);
+    if (!this.llmRouter) {
+      throw new Error('LLM router not initialized');
+    }
+    const routingPlan = await this.llmRouter.analyzeQuery(query);
 
     if (routingPlan.confidence < 0.3) {
       return {
@@ -85,16 +88,17 @@ export class BridgeInterface {
       const response = await this.mcpClient.callTool(
         routingPlan.selectedServer,
         routingPlan.selectedTool,
-        routingPlan.parameters
+        routingPlan.parameters as MCPToolParameters
       );
 
       // Format response content
       let content = '';
-      if (response.result?.content) {
-        if (Array.isArray(response.result.content)) {
-          content = response.result.content.map((item: any) => item.text || item.content || String(item)).join('\n');
+      const result = response.result as any;
+      if (result?.content) {
+        if (Array.isArray(result.content)) {
+          content = result.content.map((item: any) => item.text || item.content || String(item)).join('\n');
         } else {
-          content = String(response.result.content);
+          content = String(result.content);
         }
       } else {
         content = JSON.stringify(response.result, null, 2);
@@ -189,7 +193,9 @@ export class BridgeInterface {
     if (this.lastCatalogUpdate < fiveMinutesAgo) {
       try {
         const catalog = await this.serverDiscovery.discoverAllServers();
-        await this.llmRouter!.updateServerCatalog(catalog);
+        if (this.llmRouter) {
+          await this.llmRouter.updateServerCatalog(catalog);
+        }
         this.lastCatalogUpdate = new Date();
       } catch (error) {
         console.error('Failed to update server catalog:', error);
@@ -356,7 +362,7 @@ export class BridgeInterface {
 
     try {
       const response = await this.mcpClient.callTool(filesystemServer, "list_directory", { path });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -388,7 +394,7 @@ export class BridgeInterface {
 
     try {
       const response = await this.mcpClient.callTool(filesystemServer, "read_file", { path });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -448,7 +454,7 @@ export class BridgeInterface {
         path: ".", 
         pattern 
       });
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       
       if (Array.isArray(content)) {
         return content.map(item => item.text || '').join('\n');
@@ -477,7 +483,7 @@ export class BridgeInterface {
         "chat",
         { message: query },
       );
-      const content = response.result?.content;
+      const content = (response.result as any)?.content;
       if (typeof content === 'string') {
         return content;
       } else if (Array.isArray(content)) {

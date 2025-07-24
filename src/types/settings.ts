@@ -293,7 +293,14 @@ export interface ChatMessage {
     server?: string;
     intent?: string;
     routingMethod?: string;
-    routingPlan?: any;
+    routingPlan?: {
+      intent: string;
+      selectedServer: string;
+      selectedTool: string;
+      parameters: Record<string, unknown>;
+      reasoning: string;
+      confidence: number;
+    };
     error?: boolean;
     lowConfidence?: boolean;
   };

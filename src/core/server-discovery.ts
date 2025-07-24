@@ -2,6 +2,16 @@ import { MCPClient } from './mcp-client';
 import { MCPServerCatalog, MCPToolDefinition } from './llm-router';
 import { getLogger } from '@/utils/logger';
 
+interface RawTool {
+  name: string;
+  description?: string;
+  inputSchema?: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+}
+
 /**
  * Service for discovering and cataloging available MCP servers and their capabilities
  */
@@ -62,7 +72,7 @@ export class MCPServerDiscovery {
     const tools = await this.discoverTools(serverId);
     
     // Discover resources (if available)
-    let resources: any[] = [];
+    let resources: Array<{ uri: string; name?: string; description?: string; mimeType?: string }> = [];
     try {
       resources = await this.mcpClient.getResources(serverId);
     } catch (error) {
@@ -97,11 +107,11 @@ export class MCPServerDiscovery {
         return [];
       }
 
-      const tools: MCPToolDefinition[] = toolsResponse.tools.map((tool: any) => ({
+      const tools: MCPToolDefinition[] = toolsResponse.tools.map((tool: RawTool) => ({
         name: tool.name,
         description: tool.description || 'No description available',
-        inputSchema: tool.inputSchema || {},
-        examples: this.generateToolExamples(tool.name, tool.description),
+        inputSchema: tool.inputSchema || { type: 'object', properties: {} },
+        examples: this.generateToolExamples(tool.name, tool.description || 'No description available'),
         serverId,
       }));
 

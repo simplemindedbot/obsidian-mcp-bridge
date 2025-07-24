@@ -7,7 +7,11 @@ import { requestUrl, RequestUrlParam } from 'obsidian';
 export interface MCPToolDefinition {
   name: string;
   description: string;
-  inputSchema: Record<string, any>;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
   examples?: string[];
   serverId: string;
 }
@@ -20,9 +24,16 @@ export interface MCPServerCatalog {
   name: string;
   description: string;
   tools: MCPToolDefinition[];
-  resources: any[];
+  resources: MCPResourceInfo[];
   status: 'connected' | 'disconnected' | 'error';
   lastUpdated: Date;
+}
+
+interface MCPResourceInfo {
+  uri: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
 }
 
 /**
@@ -32,7 +43,7 @@ export interface QueryRoutingPlan {
   intent: string;
   selectedServer: string;
   selectedTool: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   reasoning: string;
   confidence: number;
   fallbackOptions?: QueryRoutingPlan[];
@@ -337,7 +348,10 @@ Respond with only valid JSON.`;
       }
       
       // Validate tool exists on server
-      const server = this.serverCatalog.get(parsed.selectedServer)!;
+      const server = this.serverCatalog.get(parsed.selectedServer);
+      if (!server) {
+        throw new Error(`Server not found: ${parsed.selectedServer}`);
+      }
       const toolExists = server.tools.some(tool => tool.name === parsed.selectedTool);
       if (!toolExists) {
         throw new Error(`Tool ${parsed.selectedTool} not found on server ${parsed.selectedServer}`);

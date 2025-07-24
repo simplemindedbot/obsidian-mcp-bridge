@@ -130,8 +130,9 @@ export class SettingsMigration {
     );
 
     // Add LLM settings if they don't exist
-    if (!(settings as any).llm) {
-      (settings as any).llm = {
+    const settingsWithLlm = settings as MCPBridgeSettings & { llm?: unknown };
+    if (!settingsWithLlm.llm) {
+      settingsWithLlm.llm = {
         enableIntelligentRouting: false,
         provider: "disabled",
         model: "gpt-4",
