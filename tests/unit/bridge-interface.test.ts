@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BridgeInterface } from '@/bridge/bridge-interface';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
+import { initializeLogger } from '@/utils/logger';
 
 // Mock dependencies
 vi.mock('@/core/mcp-client');
@@ -29,6 +30,9 @@ describe('BridgeInterface', () => {
   let mockKnowledgeEngine: any;
 
   beforeEach(() => {
+    // Initialize logger for tests
+    initializeLogger(mockApp);
+    
     // Reset mocks
     vi.clearAllMocks();
     
@@ -206,6 +210,97 @@ describe('BridgeInterface', () => {
       const result = await bridgeInterface.processQuery('general question');
 
       expect(result.content).toBe('I\'m not sure how to help with that. Connected servers: test-server');
+    });
+  });
+
+  describe('context capture', () => {
+    it('should capture current note context', () => {
+      const mockActiveView = {
+        file: {
+          basename: 'test-note',
+          path: 'test-note.md'
+        },
+        editor: {
+          getValue: vi.fn().mockReturnValue('# Test Note\n\nThis is test content.')
+        }
+      };
+      
+      mockApp.workspace.getActiveViewOfType.mockReturnValue(mockActiveView);
+      
+      const context = bridgeInterface.getCurrentNoteContext();
+      
+      expect(context).toEqual({
+        content: '# Test Note\n\nThis is test content.',
+        title: 'test-note',
+        path: 'test-note.md'
+      });
+    });
+
+    it('should return null when no active note', () => {
+      mockApp.workspace.getActiveViewOfType.mockReturnValue(null);
+      
+      const context = bridgeInterface.getCurrentNoteContext();
+      
+      expect(context).toBeNull();
+    });
+
+    it('should capture selected text', () => {
+      const mockActiveView = {
+        editor: {
+          getSelection: vi.fn().mockReturnValue('selected text content')
+        }
+      };
+      
+      mockApp.workspace.getActiveViewOfType.mockReturnValue(mockActiveView);
+      
+      const selectedText = bridgeInterface.getSelectedText();
+      
+      expect(selectedText).toBe('selected text content');
+    });
+
+    it('should return null when no text selected', () => {
+      const mockActiveView = {
+        editor: {
+          getSelection: vi.fn().mockReturnValue('')
+        }
+      };
+      
+      mockApp.workspace.getActiveViewOfType.mockReturnValue(mockActiveView);
+      
+      const selectedText = bridgeInterface.getSelectedText();
+      
+      expect(selectedText).toBeNull();
+    });
+
+    it('should get contextual information', () => {
+      const mockActiveView = {
+        file: {
+          basename: 'test-note',
+          path: 'test-note.md'
+        },
+        editor: {
+          getValue: vi.fn().mockReturnValue('# Test Note\n\nContent here.'),
+          getSelection: vi.fn().mockReturnValue('selected content'),
+          getCursor: vi.fn().mockReturnValue({ line: 2, ch: 5 }),
+          getLine: vi.fn().mockImplementation((line) => {
+            const lines = ['# Test Note', '', 'Content here.', 'More content.'];
+            return lines[line] || '';
+          }),
+          lastLine: vi.fn().mockReturnValue(3)
+        }
+      };
+      
+      mockApp.workspace.getActiveViewOfType.mockReturnValue(mockActiveView);
+      
+      const contextInfo = bridgeInterface.getContextualInfo();
+      
+      expect(contextInfo.currentNote).toEqual({
+        content: '# Test Note\n\nContent here.',
+        title: 'test-note',
+        path: 'test-note.md'
+      });
+      expect(contextInfo.selectedText).toBe('selected content');
+      expect(contextInfo.cursorContext).toContain('Content here.');
     });
   });
 });

@@ -95,13 +95,27 @@ export class LLMQueryRouter {
    * Analyze a user query and determine the best routing plan
    */
   async analyzeQuery(query: string): Promise<QueryRoutingPlan> {
-    this.logger.info('LLMQueryRouter', `Analyzing query: "${query}"`);
+    return this.analyzeQueryWithContext(query, {});
+  }
+
+  /**
+   * Analyze a user query with contextual information and determine the best routing plan
+   */
+  async analyzeQueryWithContext(
+    query: string, 
+    context: {
+      currentNote?: { content: string; title: string; path: string };
+      selectedText?: string;
+      cursorContext?: string;
+    }
+  ): Promise<QueryRoutingPlan> {
+    this.logger.info('LLMQueryRouter', `Analyzing query with context: "${query}"`);
 
     // Build context about available servers and tools
     const availableCapabilities = this.buildCapabilitiesContext();
     
-    // Create LLM prompt for query analysis
-    const prompt = this.buildAnalysisPrompt(query, availableCapabilities);
+    // Create LLM prompt for query analysis including context
+    const prompt = this.buildAnalysisPromptWithContext(query, availableCapabilities, context);
     
     try {
       // Send to LLM for analysis
@@ -198,6 +212,104 @@ Server Routing Preferences:
 - git: version control operations (git_status, git_log, git_diff, git_commit)
 - brave-search/web-search: web searches and online information lookup
 - sqlite: database queries and data operations
+
+Respond with only valid JSON.`;
+  }
+
+  /**
+   * Build analysis prompt with contextual information
+   */
+  private buildAnalysisPromptWithContext(
+    query: string, 
+    capabilities: string,
+    context: {
+      currentNote?: { content: string; title: string; path: string };
+      selectedText?: string;
+      cursorContext?: string;
+    }
+  ): string {
+    const connectedCount = this.serverCatalog.size;
+    const availableServers = Array.from(this.serverCatalog.keys());
+    
+    // Build context section
+    let contextSection = '';
+    if (context.currentNote) {
+      contextSection += `\nCurrent Note Context:
+- Title: "${context.currentNote.title}"
+- Path: "${context.currentNote.path}"
+- Content length: ${context.currentNote.content.length} characters`;
+      
+      // Include a snippet of the note content if it's not too long
+      if (context.currentNote.content.length > 0) {
+        const snippet = context.currentNote.content.length > 500 
+          ? context.currentNote.content.substring(0, 500) + '...'
+          : context.currentNote.content;
+        contextSection += `\n- Content preview: "${snippet}"`;
+      }
+    }
+    
+    if (context.selectedText) {
+      contextSection += `\nSelected Text: "${context.selectedText}"`;
+    }
+    
+    if (context.cursorContext) {
+      contextSection += `\nCursor Context: "${context.cursorContext}"`;
+    }
+    
+    return `You are an intelligent query router for MCP (Model Context Protocol) servers. Your job is to analyze user queries and determine which MCP server and tool should handle the request.
+
+Currently Connected Servers: ${connectedCount} (${availableServers.join(', ')})
+
+Available MCP Capabilities:
+${capabilities}
+${contextSection}
+
+User Query: "${query}"
+
+Analyze this query and respond with a JSON object containing:
+{
+  "intent": "Brief description of what the user wants to do",
+  "selectedServer": "The server ID that should handle this request", 
+  "selectedTool": "The specific tool name to use",
+  "parameters": "Object with parameters to pass to the tool",
+  "reasoning": "Explanation of why you chose this server/tool",
+  "confidence": "Number between 0-1 indicating confidence in this routing decision"
+}
+
+Important guidelines:
+- Use the contextual information above to better understand the user's intent
+- If operating on the current note, include the file path in parameters
+- If working with selected text, include it as context for the operation
+- Only use servers and tools that are listed in the available capabilities above
+- Extract specific parameters from the query (file paths, search terms, etc.)
+- If the query is ambiguous, choose the most likely interpretation based on context
+- If no good match exists, set confidence to 0 and explain in reasoning
+- For file operations, prefer filesystem servers  
+- For Git operations, prefer git servers
+- For web search operations, prefer brave-search or web-search servers
+- For database operations, prefer sqlite servers
+- Consider the specific tools each server provides when making routing decisions
+
+Server Routing Preferences:
+- filesystem: file/directory operations (list_directory, read_file, write_file, search_files)
+- git: version control operations (git_status, git_log, git_diff, git_commit)
+- brave-search/web-search: web searches and online information lookup
+- sqlite: database queries and data operations
+
+Context-Aware Routing:
+- If user mentions "this file", "current note", or similar, use the current note context
+- If user has selected text, consider operations that should apply to that selection
+- Use cursor context to understand the user's current working area
+
+Vault Search Routing:
+- For queries like "find my notes about X", "search vault for X", "what did I write about X", route to vault search
+- Vault search is for finding notes within the Obsidian vault (not external files)
+- Use vault search for content discovery within the user's knowledge base
+
+Note Connection Routing:
+- For queries like "connect notes on X", "connect ideas about X", "show connections between X topics", route to note connection
+- Note connection analyzes relationships, links, and clusters between related notes
+- Use note connection to map knowledge networks and discover relationships between concepts
 
 Respond with only valid JSON.`;
   }
@@ -395,6 +507,25 @@ Respond with only valid JSON.`;
     this.logger.warn('LLMQueryRouter', 'Using fallback analysis for query');
     
     const queryLower = query.toLowerCase();
+    
+    // Check for vault search first (higher priority than external search)
+    if ((queryLower.includes('find') || queryLower.includes('search')) &&
+        (queryLower.includes('notes') || queryLower.includes('note') ||
+         queryLower.includes('vault') || queryLower.includes('my') ||
+         queryLower.includes('written') || queryLower.includes('about'))) {
+      
+      const searchMatch = query.match(/(?:find|search)\s+(my\s+)?(notes?\s+)?(about\s+|on\s+)?(.+)/i);
+      const searchTerm = searchMatch ? searchMatch[4].trim() : query.replace(/^(find|search)\s+/i, '').trim();
+      
+      return {
+        intent: 'Vault search',
+        selectedServer: 'vault',
+        selectedTool: 'vault_search',
+        parameters: { query: searchTerm },
+        reasoning: 'Fallback heuristic analysis for vault search',
+        confidence: 0.8,
+      };
+    }
     
     // Simple heuristics as fallback - check multiple server types
     for (const server of this.serverCatalog.values()) {

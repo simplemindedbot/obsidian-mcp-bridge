@@ -1,14 +1,17 @@
 import { App } from "obsidian";
 import { MCPClient } from "@/core/mcp-client";
 import { KnowledgeItem } from "@/types/settings";
+import { NoteConnectionService, NoteNetwork } from "@/services/note-connections";
 
 export class KnowledgeEngine {
   private app: App;
   private mcpClient: MCPClient;
+  private noteConnectionService: NoteConnectionService;
 
   constructor(app: App, mcpClient: MCPClient) {
     this.app = app;
     this.mcpClient = mcpClient;
+    this.noteConnectionService = new NoteConnectionService(app);
   }
 
   async discoverRelatedContent(context: string): Promise<KnowledgeItem[]> {
@@ -89,6 +92,13 @@ export class KnowledgeEngine {
     }
 
     return matches / queryWords.length;
+  }
+
+  /**
+   * Connect notes around a specific topic - creates a knowledge network
+   */
+  async connectNotesOnTopic(topic: string): Promise<NoteNetwork> {
+    return this.noteConnectionService.connectNotesOnTopic(topic);
   }
 
   async generateSuggestions(_currentNote: string): Promise<string[]> {

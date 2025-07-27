@@ -4,6 +4,7 @@ import { KnowledgeEngine } from "@/knowledge/knowledge-engine";
 import { ChatMessage } from "@/types/settings";
 import { LLMQueryRouter, LLMProviderConfig } from "@/core/llm-router";
 import { MCPServerDiscovery } from "@/core/server-discovery";
+import { VaultSearchService } from "@/services/vault-search";
 
 export class BridgeInterface {
   private app: App;
@@ -12,6 +13,7 @@ export class BridgeInterface {
   private llmRouter?: LLMQueryRouter;
   private serverDiscovery: MCPServerDiscovery;
   private lastCatalogUpdate: Date = new Date(0);
+  private vaultSearchService: VaultSearchService;
 
   constructor(
     app: App,
@@ -23,6 +25,7 @@ export class BridgeInterface {
     this.mcpClient = mcpClient;
     this.knowledgeEngine = knowledgeEngine;
     this.serverDiscovery = new MCPServerDiscovery(mcpClient);
+    this.vaultSearchService = new VaultSearchService(app);
     
     if (llmConfig) {
       this.llmRouter = new LLMQueryRouter(llmConfig);
@@ -63,11 +66,14 @@ export class BridgeInterface {
     // Update server catalog if needed
     await this.updateServerCatalogIfNeeded();
 
-    // Analyze query with LLM
+    // Get contextual information
+    const contextInfo = this.getContextualInfo();
+
+    // Analyze query with LLM including context
     if (!this.llmRouter) {
       throw new Error('LLM router not initialized');
     }
-    const routingPlan = await this.llmRouter.analyzeQuery(query);
+    const routingPlan = await this.llmRouter.analyzeQueryWithContext(query, contextInfo);
 
     if (routingPlan.confidence < 0.3) {
       return {
@@ -84,7 +90,41 @@ export class BridgeInterface {
     }
 
     try {
-      // Execute the routing plan
+      // Handle vault search locally (not via MCP)
+      if (routingPlan.selectedTool === 'vault_search' || routingPlan.selectedServer === 'vault') {
+        const content = await this.handleVaultSearch(query);
+        return {
+          id: Math.random().toString(36),
+          role: "assistant",
+          content,
+          timestamp: new Date(),
+          metadata: {
+            processingTime: Date.now() - startTime,
+            routingPlan,
+            toolsCalled: [routingPlan.selectedTool],
+            server: 'vault',
+          },
+        };
+      }
+
+      // Handle note connections locally (not via MCP)
+      if (routingPlan.selectedTool === 'note_connection' || routingPlan.selectedServer === 'note_connection') {
+        const content = await this.handleNoteConnection(query);
+        return {
+          id: Math.random().toString(36),
+          role: "assistant",
+          content,
+          timestamp: new Date(),
+          metadata: {
+            processingTime: Date.now() - startTime,
+            routingPlan,
+            toolsCalled: [routingPlan.selectedTool],
+            server: 'note_connection',
+          },
+        };
+      }
+
+      // Execute the routing plan via MCP
       const response = await this.mcpClient.callTool(
         routingPlan.selectedServer,
         routingPlan.selectedTool,
@@ -161,9 +201,17 @@ export class BridgeInterface {
         response = await this.handleSearch(query);
         toolsCalled.push("search");
         break;
+      case "vault-search":
+        response = await this.handleVaultSearch(query);
+        toolsCalled.push("vault_search");
+        break;
       case "knowledge-discovery":
         response = await this.handleKnowledgeDiscovery(query);
         toolsCalled.push("knowledge-discovery");
+        break;
+      case "note-connection":
+        response = await this.handleNoteConnection(query);
+        toolsCalled.push("note-connection");
         break;
       default:
         response = await this.handleGeneral(query);
@@ -235,6 +283,84 @@ export class BridgeInterface {
     editor.replaceRange(content, cursor);
   }
 
+  /**
+   * Get the current note's content and metadata
+   */
+  getCurrentNoteContext(): { content: string; title: string; path: string } | null {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) {
+      return null;
+    }
+
+    const file = activeView.file;
+    if (!file) {
+      return null;
+    }
+
+    return {
+      content: activeView.editor.getValue(),
+      title: file.basename,
+      path: file.path,
+    };
+  }
+
+  /**
+   * Get the currently selected text
+   */
+  getSelectedText(): string | null {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) {
+      return null;
+    }
+
+    const selection = activeView.editor.getSelection();
+    return selection.length > 0 ? selection : null;
+  }
+
+  /**
+   * Get contextual information for MCP routing
+   */
+  getContextualInfo(): {
+    currentNote?: { content: string; title: string; path: string };
+    selectedText?: string;
+    cursorContext?: string;
+  } {
+    const result: {
+      currentNote?: { content: string; title: string; path: string };
+      selectedText?: string;
+      cursorContext?: string;
+    } = {};
+
+    // Get current note
+    const noteContext = this.getCurrentNoteContext();
+    if (noteContext) {
+      result.currentNote = noteContext;
+    }
+
+    // Get selected text
+    const selectedText = this.getSelectedText();
+    if (selectedText) {
+      result.selectedText = selectedText;
+    }
+
+    // Get cursor context (lines around cursor)
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (activeView) {
+      const editor = activeView.editor;
+      const cursor = editor.getCursor();
+      const contextLines: string[] = [];
+      
+      // Get 3 lines before and after cursor for context
+      for (let i = Math.max(0, cursor.line - 3); i <= Math.min(editor.lastLine(), cursor.line + 3); i++) {
+        contextLines.push(editor.getLine(i));
+      }
+      
+      result.cursorContext = contextLines.join('\n').trim();
+    }
+
+    return result;
+  }
+
   async createNewNote(title: string, content: string): Promise<void> {
     const fileName = `${title}.md`;
     await this.app.vault.create(fileName, content);
@@ -273,14 +399,34 @@ export class BridgeInterface {
       return "filesystem-write";
     }
 
+    // Vault search (notes, content, tags)
+    if (
+      (queryLower.includes("find") || queryLower.includes("search")) &&
+      (queryLower.includes("notes") || queryLower.includes("note") ||
+       queryLower.includes("vault") || queryLower.includes("my") ||
+       queryLower.includes("written") || queryLower.includes("about"))
+    ) {
+      return "vault-search";
+    }
+
+    // Filesystem search (files, directories)
     if (queryLower.includes("find") || queryLower.includes("search")) {
       return "filesystem-search";
     }
 
+    // Note connection (more specific than discovery)
+    if (
+      queryLower.includes("connect") &&
+      (queryLower.includes("notes") || queryLower.includes("ideas") || 
+       queryLower.includes("on") || queryLower.includes("about"))
+    ) {
+      return "note-connection";
+    }
+
+    // General knowledge discovery
     if (
       queryLower.includes("discover") ||
-      queryLower.includes("related") ||
-      queryLower.includes("connect")
+      queryLower.includes("related")
     ) {
       return "knowledge-discovery";
     }
@@ -311,6 +457,76 @@ export class BridgeInterface {
     );
   }
 
+  private async handleVaultSearch(query: string): Promise<string> {
+    // Extract search terms from query
+    const searchTerms = query.replace(/^(find|search)\s+(my\s+)?(notes?\s+)?(about\s+|on\s+)?/i, "").trim();
+    
+    if (!searchTerms) {
+      return "Please specify what you'd like to search for in your vault.";
+    }
+
+    try {
+      // Get plugin integration status for user feedback
+      const integrations = this.vaultSearchService.getPluginIntegrations();
+      
+      // Perform vault search
+      const results = await this.vaultSearchService.search(searchTerms, {
+        maxResults: 10,
+        minRelevanceScore: 0.1,
+        includeContent: true,
+        contextLines: 2
+      });
+
+      if (results.length === 0) {
+        let message = `No notes found for "${searchTerms}".`;
+        
+        // Suggest plugin integrations for better search
+        if (!integrations.omnisearch && !integrations.restapi) {
+          message += "\n\n💡 **Tip**: Install the Omnisearch plugin for more powerful search capabilities, including OCR and semantic search.";
+        }
+        
+        return message;
+      }
+
+      // Format results
+      let response = `Found ${results.length} notes about "${searchTerms}":\n\n`;
+      
+      results.slice(0, 8).forEach((result, index) => {
+        const relevancePercent = Math.round(result.relevanceScore * 100);
+        response += `**${index + 1}. ${result.title}** (${relevancePercent}% match)\n`;
+        response += `📄 ${result.metadata.path}\n`;
+        
+        if (result.excerpt) {
+          // Clean up excerpt and limit length
+          const cleanExcerpt = result.excerpt.replace(/\n+/g, ' ').trim();
+          const limitedExcerpt = cleanExcerpt.length > 200 
+            ? cleanExcerpt.substring(0, 200) + '...' 
+            : cleanExcerpt;
+          response += `💬 "${limitedExcerpt}"\n`;
+        }
+        
+        if (result.metadata.tags && result.metadata.tags.length > 0) {
+          response += `🏷️ ${result.metadata.tags.slice(0, 3).map(tag => `#${tag}`).join(' ')}\n`;
+        }
+        
+        response += `📅 Modified: ${result.metadata.modified.toLocaleDateString()}\n\n`;
+      });
+
+      // Add search enhancement info
+      if (integrations.omnisearch) {
+        response += "🔍 *Enhanced by Omnisearch plugin*";
+      } else if (results.length >= 8) {
+        response += "\n💡 *Install Omnisearch plugin for even better search results with OCR and semantic search*";
+      }
+
+      return response;
+      
+    } catch (error) {
+      console.error('Vault search error:', error);
+      return `Error searching vault: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
   private async handleKnowledgeDiscovery(query: string): Promise<string> {
     const discoveries =
       await this.knowledgeEngine.discoverRelatedContent(query);
@@ -329,6 +545,90 @@ export class BridgeInterface {
         )
         .join("\n")
     );
+  }
+
+  private async handleNoteConnection(query: string): Promise<string> {
+    // Extract topic from query
+    const topicMatch = query.match(/(?:connect|connection).*?(?:on|about|for)\s+(.+?)(?:\?|$)/i);
+    const topic = topicMatch ? topicMatch[1].trim() : query.replace(/^(connect|connection)\s+/i, '').trim();
+    
+    if (!topic || topic.length < 2) {
+      return "Please specify a topic to connect notes about. For example: 'Connect notes on artificial intelligence'";
+    }
+
+    try {
+      const network = await this.knowledgeEngine.connectNotesOnTopic(topic);
+      
+      if (network.nodes.length === 0) {
+        return `No notes found related to "${topic}". Try searching with different keywords.`;
+      }
+
+      // Format the network analysis response
+      let response = `## 🕸️ Note Network: "${topic}"\n\n`;
+      
+      // Summary
+      response += `**Network Overview:**\n`;
+      response += `- 📝 ${network.summary.totalNotes} related notes\n`;
+      response += `- 🔗 ${network.summary.totalConnections} connections discovered\n`;
+      
+      if (network.summary.keyThemes.length > 0) {
+        response += `- 🎯 Key themes: ${network.summary.keyThemes.join(', ')}\n`;
+      }
+      response += `\n`;
+
+      // Strongest connections
+      if (network.summary.strongestConnections.length > 0) {
+        response += `**🔥 Strongest Connections:**\n`;
+        network.summary.strongestConnections.slice(0, 3).forEach((conn, index) => {
+          const strength = Math.round(conn.strength * 100);
+          response += `${index + 1}. **${conn.sourceNote.title}** ↔️ **${conn.targetNote.title}** (${strength}%)\n`;
+          response += `   *${conn.reason}*\n\n`;
+        });
+      }
+
+      // Node analysis
+      const hubNodes = network.nodes.filter(node => node.nodeType === 'hub').slice(0, 3);
+      if (hubNodes.length > 0) {
+        response += `**🌟 Hub Notes (most connected):**\n`;
+        hubNodes.forEach((node, index) => {
+          response += `${index + 1}. **${node.title}** (${node.connectionCount} connections)\n`;
+        });
+        response += `\n`;
+      }
+
+      // Clusters
+      if (network.clusters.length > 0) {
+        response += `**📚 Note Clusters:**\n`;
+        network.clusters.slice(0, 3).forEach((cluster, index) => {
+          response += `${index + 1}. **${cluster.theme}** - ${cluster.notes.length} notes\n`;
+          cluster.notes.slice(0, 3).forEach(note => {
+            response += `   • ${note.title}\n`;
+          });
+          if (cluster.notes.length > 3) {
+            response += `   • ...and ${cluster.notes.length - 3} more\n`;
+          }
+          response += `\n`;
+        });
+      }
+
+      // Suggestions
+      if (network.summary.suggestions.length > 0) {
+        response += `**💡 Connection Suggestions:**\n`;
+        network.summary.suggestions.forEach((suggestion, index) => {
+          response += `${index + 1}. ${suggestion.description}\n`;
+          response += `   *${suggestion.reason}*\n\n`;
+        });
+      }
+
+      // Note: Could add visualization here if needed
+      response += `*Use the graph view or install a graph visualization plugin to see these connections visually.*`;
+      
+      return response;
+      
+    } catch (error) {
+      console.error('Note connection error:', error);
+      return `Error analyzing note connections for "${topic}": ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
   }
 
   private async handleFilesystemList(query: string): Promise<string> {
