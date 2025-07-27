@@ -14,20 +14,6 @@ interface WindowWithElectron extends Window {
   electron?: ElectronAPI;
 }
 
-// Type guard for checking if plugin has config manager
-function hasConfigManager(plugin: MCPBridgePlugin): plugin is MCPBridgePlugin & { 
-  configManager: { 
-    hasLegacyConfig(): Promise<boolean>; 
-    cleanupLegacyConfig(): Promise<void>; 
-  } 
-} {
-  return 'configManager' in plugin && 
-         typeof plugin.configManager === 'object' && 
-         plugin.configManager !== null &&
-         'hasLegacyConfig' in plugin.configManager &&
-         'cleanupLegacyConfig' in plugin.configManager;
-}
-
 export class MCPBridgeSettingTab extends PluginSettingTab {
   plugin: MCPBridgePlugin;
 
@@ -45,6 +31,9 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
     // Server Configuration Section
     this.addServerInfoSection();
 
+    // LLM Integration Section
+    this.addLLMSection();
+
     // Knowledge Discovery Section
     this.addKnowledgeDiscoverySection();
 
@@ -56,21 +45,19 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
 
     // Logging Section
     this.addLoggingSection();
-
-    // LLM Integration Section
-    this.addLLMSection();
-
-    // Advanced Settings Section
-    this.addAdvancedSection();
   }
 
   private addServerInfoSection(): void {
     const { containerEl } = this;
 
     containerEl.createEl("h3", { text: "MCP Servers" });
-    containerEl.createEl("p", {
-      text: "MCP servers are configured via JSON file for maximum flexibility and version control.",
-    });
+    const desc = containerEl.createEl("p");
+    desc.innerHTML = `
+      MCP servers are configured by editing the
+      <code>obsidian-mcp-bridge-config.json</code> file.
+      This approach allows for flexible and version-controllable server setups.
+      See the <a href="https://github.com/simplemindedbot/obsidian-mcp-bridge#example-configuration">README</a> for examples.
+    `;
 
     // Server status display
     const statusContainer = containerEl.createEl("div", {
@@ -102,6 +89,15 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
     codeBlock.createEl("code", {
       text: configPath,
     });
+
+    new Setting(containerEl)
+      .setName("Edit Configuration")
+      .setDesc("Click to open the configuration file in Obsidian.")
+      .addButton((button) => {
+        button.setButtonText("Open Config File").onClick(async () => {
+          await this.app.workspace.openLinkText(configPath, "", false);
+        });
+      });
     
     // Example configuration
     const exampleContainer = instructionsContainer.createEl("details", {
@@ -143,73 +139,19 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
       cls: "mcp-config-note",
     });
 
-    // Quick actions
-    new Setting(containerEl)
-      .setName("Open Configuration Folder")
-      .setDesc("Open the plugin configuration folder in your file manager")
-      .addButton((button) => {
-        button.setButtonText("Open Folder").onClick(async () => {
-          try {
-            // Try to open the folder using the system's default file manager
-            const configDir = `${this.app.vault.configDir}/plugins/obsidian-mcp-bridge`;
-            const electronWindow = window as WindowWithElectron;
-            await electronWindow.electron?.shell?.openPath?.(configDir);
-          } catch (error) {
-            new Notice("Could not open folder automatically. Please navigate to: " + configPath);
-          }
-        });
-      });
-
     new Setting(containerEl)
       .setName("Reload Plugin")
       .setDesc("Reload the plugin to apply configuration changes")
       .addButton((button) => {
         button.setButtonText("Reload").onClick(async () => {
-          new Notice("Please use Ctrl/Cmd+R to reload Obsidian and apply changes");
+          const obsidianApp = this.app as any;
+          await obsidianApp.plugins.reloadPlugin(this.plugin.manifest.id);
+          new Notice("Plugin reloaded successfully!");
         });
       });
 
-    // Check for legacy config file
-    this.addLegacyConfigSection();
+    // The legacy config check is no longer needed, so this is empty.
   }
-
-  private async addLegacyConfigSection(): Promise<void> {
-    const hasLegacy = hasConfigManager(this.plugin) ? 
-      await this.plugin.configManager.hasLegacyConfig() : false;
-    
-    if (hasLegacy) {
-      const { containerEl } = this;
-      
-      const legacyContainer = containerEl.createEl("div", {
-        cls: "mcp-legacy-config",
-      });
-      
-      legacyContainer.createEl("h4", { text: "⚠️ Legacy Configuration Detected" });
-      legacyContainer.createEl("p", {
-        text: "An old data.json configuration file was found. The plugin has migrated your settings to the new configuration file format.",
-      });
-      
-      new Setting(legacyContainer)
-        .setName("Clean Up Legacy File")
-        .setDesc("Remove the old data.json file (it will be backed up as data.json.backup)")
-        .addButton((button) => {
-          button.setButtonText("Clean Up").onClick(async () => {
-            try {
-              if (hasConfigManager(this.plugin)) {
-                await this.plugin.configManager.cleanupLegacyConfig();
-              }
-              new Notice("Legacy configuration file cleaned up successfully");
-              this.display(); // Refresh to hide this section
-            } catch (error) {
-              new Notice("Error cleaning up legacy file: " + (error as Error).message);
-            }
-          });
-        });
-    }
-  }
-
-
-
 
   private addKnowledgeDiscoverySection(): void {
     const { containerEl } = this;
@@ -581,38 +523,6 @@ export class MCPBridgeSettingTab extends PluginSettingTab {
       case "local": return "llama2";
       default: return "gpt-4";
     }
-  }
-
-  private addAdvancedSection(): void {
-    const { containerEl } = this;
-
-    containerEl.createEl("h3", { text: "Advanced Settings" });
-
-    new Setting(containerEl)
-      .setName("Debug Mode")
-      .setDesc("Enable debug logging (check console for output)")
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.enableDebugMode)
-          .onChange(async (value) => {
-            this.plugin.settings.enableDebugMode = value;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Default Timeout")
-      .setDesc("Default timeout for MCP server connections (seconds)")
-      .addSlider((slider) => {
-        slider
-          .setLimits(10, 120, 10)
-          .setValue(this.plugin.settings.defaultTimeout / 1000)
-          .setDynamicTooltip()
-          .onChange(async (value) => {
-            this.plugin.settings.defaultTimeout = value * 1000;
-            await this.plugin.saveSettings();
-          });
-      });
   }
 
 }

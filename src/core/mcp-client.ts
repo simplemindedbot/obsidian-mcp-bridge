@@ -82,7 +82,7 @@ export class MCPClient {
     backoffFactor: RETRY_CONFIG.BACKOFF_FACTOR,
   };
 
-  constructor(settings: MCPBridgeSettings) {
+  constructor(settings: MCPBridgeSettings, private mcpConnectionFactory?: (serverId: string, serverConfig: MCPServerConfig) => MCPConnection) {
     this.settings = settings;
   }
 
@@ -110,7 +110,9 @@ export class MCPClient {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const connection = new MCPConnection(serverId, serverConfig);
+        const connection = this.mcpConnectionFactory
+          ? this.mcpConnectionFactory(serverId, serverConfig)
+          : new MCPConnection(serverId, serverConfig);
         await connection.connect();
         this.connections.set(serverId, connection);
 
