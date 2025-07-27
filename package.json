@@ -1,6 +1,6 @@
 {
   "name": "obsidian-mcp-bridge",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A bridge connecting Model Context Protocol (MCP) servers with Obsidian for enhanced knowledge discovery and synthesis",
   "main": "main.js",
   "scripts": {

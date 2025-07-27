@@ -1,7 +1,7 @@
 {
   "id": "obsidian-mcp-bridge",
   "name": "MCP Bridge",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "minAppVersion": "1.4.16",
   "description": "Bridge connecting Model Context Protocol (MCP) servers with Obsidian for enhanced knowledge discovery and AI-powered workflows",
   "author": "Scot Campbell",
