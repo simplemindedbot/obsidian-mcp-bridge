@@ -10,29 +10,39 @@ const mockApp = {
   }
 } as any;
 
-// Mock the MCP SDK
-vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
-  Client: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-    callTool: vi.fn().mockResolvedValue({ content: [{ type: 'text', text: 'test response' }] }),
-    listTools: vi.fn().mockResolvedValue({ tools: [] }),
-    listResources: vi.fn().mockResolvedValue({ resources: [] }),
-  }))
-}));
+vi.mock('@/core/mcp-client', async (importOriginal) => {
+  const actual = await importOriginal();
+  const mockMCPConnection = vi.fn().mockImplementation(() => {
+    const connection = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      callTool: vi.fn().mockResolvedValue({ result: 'mock response' }),
+      getResources: vi.fn().mockResolvedValue([]),
+      isReady: () => true,
+      on: vi.fn(),
+    };
+    return connection;
+  });
 
-vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: vi.fn().mockImplementation(() => ({
-    close: vi.fn().mockResolvedValue(undefined),
-  }))
-}));
+  return {
+    ...actual,
+    MCPConnection: mockMCPConnection,
+  };
+});
+
+import { initializeLogger } from '@/utils/logger';
 
 describe('MCPClient', () => {
   let mcpClient: MCPClient;
   let mockSettings: MCPBridgeSettings;
+  let mockConnection: any;
 
   beforeEach(() => {
-    // Initialize logger for tests
+    const mockApp = {
+      vault: {
+        configDir: '/tmp/test-config'
+      }
+    } as any;
     initializeLogger(mockApp);
     
     mockSettings = {
@@ -44,28 +54,21 @@ describe('MCPClient', () => {
           args: ['--test'],
           type: 'stdio',
           env: {},
-          timeout: 5000,
-          retryAttempts: 3,
+          timeout: 500,
+          retryAttempts: 1,
         }
       },
-      ui: {
-        theme: 'light',
-        fontSize: 14,
-        showTimestamps: true,
-        showProcessingTime: true,
-        maxHistoryLength: 100,
-      },
-      knowledge: {
-        enableAutoDiscovery: true,
-        discoveryRadius: 3,
-        minRelevanceScore: 0.5,
-        maxResults: 10,
-        enableCaching: true,
-        cacheTimeout: 300000,
-      }
+    } as any;
+
+    mockConnection = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+      callTool: vi.fn().mockResolvedValue({ result: 'mock response' }),
+      getResources: vi.fn().mockResolvedValue([]),
+      search: vi.fn(),
     };
 
-    mcpClient = new MCPClient(mockSettings);
+    mcpClient = new MCPClient(mockSettings, () => mockConnection);
   });
 
   afterEach(() => {
@@ -81,7 +84,7 @@ describe('MCPClient', () => {
 
     it('should skip disabled servers during initialization', async () => {
       mockSettings.servers['test-server'].enabled = false;
-      mcpClient = new MCPClient(mockSettings);
+      mcpClient = new MCPClient(mockSettings, () => mockConnection);
       
       await mcpClient.initialize();
       
@@ -89,9 +92,8 @@ describe('MCPClient', () => {
     });
 
     it('should handle connection failures gracefully', async () => {
-      // Create a client that will make the connection fail
-      mockSettings.servers['test-server'].command = '';
-      mcpClient = new MCPClient(mockSettings);
+      mockConnection.connect.mockRejectedValue(new Error('Connection failed'));
+      mcpClient = new MCPClient(mockSettings, () => mockConnection);
 
       await mcpClient.initialize();
       
@@ -140,16 +142,8 @@ describe('MCPClient', () => {
     });
 
     it('should call tool on connected server', async () => {
-      // The mock will need to handle the tool call - we'll skip detailed verification
-      // and just check that the method calls succeed
-      try {
-        const result = await mcpClient.callTool('test-server', 'test-tool', { param: 'value' });
-        // Check that we got some kind of result
-        expect(result).toHaveProperty('result');
-      } catch (error) {
-        // Expected to fail due to mock limitations, but connection should exist
-        expect(error).toBeDefined();
-      }
+      const result = await mcpClient.callTool('test-server', 'test-tool', { param: 'value' });
+      expect(result).toEqual({ result: 'mock response' });
     });
 
     it('should throw error for non-existent server', async () => {
@@ -158,9 +152,8 @@ describe('MCPClient', () => {
     });
 
     it('should search across all connected servers', async () => {
-      const results = await mcpClient.searchAcrossServers('test query');
-      
-      expect(results).toEqual([]);
+      await mcpClient.searchAcrossServers('test query');
+      expect(mockConnection.search).toHaveBeenCalledWith('test query');
     });
   });
 
@@ -170,9 +163,8 @@ describe('MCPClient', () => {
     });
 
     it('should list resources for connected server', async () => {
-      const resources = await mcpClient.getResources('test-server');
-      
-      expect(resources).toEqual([]);
+      await mcpClient.getResources('test-server');
+      expect(mockConnection.getResources).toHaveBeenCalled();
     });
 
     it('should throw error for non-existent server resources', async () => {

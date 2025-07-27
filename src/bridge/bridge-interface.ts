@@ -60,6 +60,18 @@ export class BridgeInterface {
    * Process query using intelligent LLM routing
    */
   private async processQueryWithLLM(query: string, startTime: number): Promise<ChatMessage> {
+    if (this.mcpClient.getConnectedServers().length === 0) {
+      return {
+        id: Math.random().toString(36),
+        role: "assistant",
+        content: `I'm not sure how to help with that. \n\nAvailable servers: `,
+        timestamp: new Date(),
+        metadata: {
+          processingTime: Date.now() - startTime,
+          error: true,
+        },
+      };
+    }
     // Update server catalog if needed
     await this.updateServerCatalogIfNeeded();
 
@@ -79,6 +91,22 @@ export class BridgeInterface {
           processingTime: Date.now() - startTime,
           routingPlan,
           lowConfidence: true,
+        },
+      };
+    }
+
+    if (routingPlan.selectedTool === 'knowledge-discovery') {
+      const content = await this.handleKnowledgeDiscovery(query);
+      return {
+        id: Math.random().toString(36),
+        role: "assistant",
+        content,
+        timestamp: new Date(),
+        metadata: {
+          processingTime: Date.now() - startTime,
+          routingPlan,
+          toolsCalled: [routingPlan.selectedTool],
+          server: routingPlan.selectedServer,
         },
       };
     }

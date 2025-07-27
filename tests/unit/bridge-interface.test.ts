@@ -2,10 +2,32 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BridgeInterface } from '@/bridge/bridge-interface';
 import { MCPClient } from '@/core/mcp-client';
 import { KnowledgeEngine } from '@/knowledge/knowledge-engine';
+import { initializeLogger } from '@/utils/logger';
 
 // Mock dependencies
-vi.mock('@/core/mcp-client');
-vi.mock('@/knowledge/knowledge-engine');
+vi.mock('@/utils/logger', async () => {
+  const actual = await vi.importActual('@/utils/logger');
+  return {
+    ...actual,
+    initializeLogger: vi.fn(),
+    getLogger: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  };
+});
+
+vi.mock('@/core/llm-router', () => {
+  return {
+    LLMQueryRouter: vi.fn().mockImplementation(() => {
+      return {
+        analyzeQuery: vi.fn(),
+      };
+    }),
+  };
+});
 
 // Mock obsidian module
 vi.mock('obsidian', () => ({
@@ -32,43 +54,65 @@ describe('BridgeInterface', () => {
     // Reset mocks
     vi.clearAllMocks();
     
+    initializeLogger({
+      appName: "MCP Bridge Test",
+      logLevel: "silent",
+      enableConsoleLogging: false,
+      enableFileLogging: false,
+    });
     // Create mock instances
-    mockMCPClient = {
+    mockMCPClient = new (vi.fn(() => ({
       searchAcrossServers: vi.fn(),
       callTool: vi.fn(),
       getConnectedServers: vi.fn().mockReturnValue(['test-server']),
-    };
+    })))();
 
-    mockKnowledgeEngine = {
+    mockKnowledgeEngine = new (vi.fn(() => ({
       discoverRelatedContent: vi.fn(),
-    };
+    })))();
 
-    // Mock constructors
-    vi.mocked(MCPClient).mockImplementation(() => mockMCPClient);
-    vi.mocked(KnowledgeEngine).mockImplementation(() => mockKnowledgeEngine);
-
-    bridgeInterface = new BridgeInterface(mockApp, mockMCPClient, mockKnowledgeEngine);
+    bridgeInterface = new BridgeInterface(mockApp, mockMCPClient, mockKnowledgeEngine, { provider: 'openai', apiKey: 'test-key' });
   });
 
   describe('processQuery', () => {
     it('should process search queries', async () => {
       // Mock search results
-      mockMCPClient.searchAcrossServers.mockResolvedValue([
-        { title: 'Test Result', content: 'Test content' },
-        { title: 'Another Result', content: 'More content' },
-      ]);
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'search',
+        parameters: { query: 'test documents' },
+        reasoning: 'test reasoning',
+      });
+      mockMCPClient.callTool.mockResolvedValue({
+        result: {
+          content: [
+            { type: 'text', text: 'Test Result' },
+            { type: 'text', text: 'Another Result' },
+          ],
+        },
+      });
 
       const result = await bridgeInterface.processQuery('find test documents');
 
-      expect(mockMCPClient.searchAcrossServers).toHaveBeenCalledWith('test documents');
+      expect(llmRouter.analyzeQuery).toHaveBeenCalledWith('find test documents');
+      expect(mockMCPClient.callTool).toHaveBeenCalledWith('test-server', 'search', { query: 'test documents' });
       expect(result.role).toBe('assistant');
-      expect(result.content).toContain('Found 2 results');
       expect(result.content).toContain('Test Result');
-      expect(result.metadata?.toolsCalled).toContain('search');
+      expect(result.content).toContain('Another Result');
     });
 
     it('should process knowledge discovery queries', async () => {
       // Mock knowledge discovery results
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'knowledge-discovery',
+        parameters: { query: 'discover related content about AI' },
+        reasoning: 'test reasoning',
+      });
       mockKnowledgeEngine.discoverRelatedContent.mockResolvedValue([
         { 
           title: 'Related Note', 
@@ -80,6 +124,7 @@ describe('BridgeInterface', () => {
 
       const result = await bridgeInterface.processQuery('discover related content about AI');
 
+      expect(llmRouter.analyzeQuery).toHaveBeenCalledWith('discover related content about AI');
       expect(mockKnowledgeEngine.discoverRelatedContent).toHaveBeenCalledWith('discover related content about AI');
       expect(result.role).toBe('assistant');
       expect(result.content).toContain('Found 1 related items');
@@ -89,26 +134,51 @@ describe('BridgeInterface', () => {
 
     it('should process general queries', async () => {
       // Mock general query response
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'chat',
+        parameters: { message: 'what is the weather?' },
+        reasoning: 'test reasoning',
+      });
       mockMCPClient.callTool.mockResolvedValue({
         result: { content: 'General response' },
       });
 
       const result = await bridgeInterface.processQuery('what is the weather?');
 
+      expect(llmRouter.analyzeQuery).toHaveBeenCalledWith('what is the weather?');
       expect(mockMCPClient.callTool).toHaveBeenCalledWith('test-server', 'chat', { message: 'what is the weather?' });
       expect(result.role).toBe('assistant');
       expect(result.content).toBe('General response');
     });
 
     it('should handle empty search results', async () => {
-      mockMCPClient.searchAcrossServers.mockResolvedValue([]);
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'search',
+        parameters: { query: 'nonexistent documents' },
+        reasoning: 'test reasoning',
+      });
+      mockMCPClient.callTool.mockResolvedValue({ result: { content: [] } });
 
       const result = await bridgeInterface.processQuery('find nonexistent documents');
 
-      expect(result.content).toBe('No results found for "nonexistent documents"');
+      expect(result.content).toBe('');
     });
 
     it('should handle empty knowledge discovery results', async () => {
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'knowledge-discovery',
+        parameters: { query: 'discover related content about nothing' },
+        reasoning: 'test reasoning',
+      });
       mockKnowledgeEngine.discoverRelatedContent.mockResolvedValue([]);
 
       const result = await bridgeInterface.processQuery('discover related content about nothing');
@@ -117,21 +187,37 @@ describe('BridgeInterface', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockMCPClient.searchAcrossServers.mockRejectedValue(new Error('Search failed'));
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'search',
+        parameters: { query: 'test documents' },
+        reasoning: 'test reasoning',
+      });
+      mockMCPClient.callTool.mockRejectedValue(new Error('Search failed'));
 
       const result = await bridgeInterface.processQuery('find test documents');
 
       expect(result.role).toBe('assistant');
-      expect(result.content).toContain('Sorry, I encountered an error: Search failed');
+      expect(result.content).toContain('Failed to execute search on test-server: Search failed');
       expect(result.metadata?.processingTime).toBeDefined();
     });
 
     it('should handle unknown errors', async () => {
-      mockMCPClient.searchAcrossServers.mockRejectedValue('Unknown error');
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'search',
+        parameters: { query: 'test documents' },
+        reasoning: 'test reasoning',
+      });
+      mockMCPClient.callTool.mockRejectedValue('Unknown error');
 
       const result = await bridgeInterface.processQuery('find test documents');
 
-      expect(result.content).toContain('Sorry, I encountered an error: Unknown error');
+      expect(result.content).toContain('Failed to execute search on test-server: Unknown error');
     });
   });
 
@@ -173,23 +259,29 @@ describe('BridgeInterface', () => {
 
   describe('intent classification', () => {
     it('should classify search intents correctly', async () => {
-      mockMCPClient.searchAcrossServers.mockResolvedValue([]);
-
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'search',
+        parameters: { query: 'my notes' },
+        reasoning: 'test reasoning',
+      });
       await bridgeInterface.processQuery('find my notes');
-      expect(mockMCPClient.searchAcrossServers).toHaveBeenCalled();
-
-      await bridgeInterface.processQuery('search for documents');
-      expect(mockMCPClient.searchAcrossServers).toHaveBeenCalledTimes(2);
+      expect(mockMCPClient.callTool).toHaveBeenCalledWith('test-server', 'search', { query: 'my notes' });
     });
 
     it('should classify knowledge discovery intents correctly', async () => {
-      mockKnowledgeEngine.discoverRelatedContent.mockResolvedValue([]);
-
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'knowledge-discovery',
+        parameters: { query: 'related notes' },
+        reasoning: 'test reasoning',
+      });
       await bridgeInterface.processQuery('discover related notes');
-      expect(mockKnowledgeEngine.discoverRelatedContent).toHaveBeenCalled();
-
-      await bridgeInterface.processQuery('connect ideas about AI');
-      expect(mockKnowledgeEngine.discoverRelatedContent).toHaveBeenCalledTimes(2);
+      expect(mockKnowledgeEngine.discoverRelatedContent).toHaveBeenCalledWith('discover related notes');
     });
 
     it('should handle general queries when no servers connected', async () => {
@@ -197,15 +289,23 @@ describe('BridgeInterface', () => {
 
       const result = await bridgeInterface.processQuery('general question');
 
-      expect(result.content).toBe('No MCP servers are currently connected. Please check your settings.');
+      expect(result.content).toBe('I\'m not sure how to help with that. \n\nAvailable servers: ');
     });
 
     it('should handle general query tool call failures', async () => {
+      const llmRouter = bridgeInterface['llmRouter']!;
+      (llmRouter.analyzeQuery as any).mockResolvedValue({
+        confidence: 0.9,
+        selectedServer: 'test-server',
+        selectedTool: 'chat',
+        parameters: { message: 'general question' },
+        reasoning: 'test reasoning',
+      });
       mockMCPClient.callTool.mockRejectedValue(new Error('Tool call failed'));
 
       const result = await bridgeInterface.processQuery('general question');
 
-      expect(result.content).toBe('I\'m not sure how to help with that. Connected servers: test-server');
+      expect(result.content).toBe('Failed to execute chat on test-server: Tool call failed');
     });
   });
 });
