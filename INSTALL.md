@@ -2,15 +2,15 @@
 
 This guide will help you install and set up the Obsidian MCP Bridge plugin.
 
-> **🚧 Beta Release v0.1.1** - This is a public beta release. Please report any issues you encounter!
+> **🎉 Release v0.2.0** - Now with comprehensive note connection analysis! Connect your knowledge like never before.
 
 ## 📥 Quick Start
 
 ### Option 1: Download Beta Release (Recommended)
 
-**Download the latest beta release:**
+**Download the latest release:**
 
-1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.1.1-beta)
+1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.2.0)
 2. Download `main.js` and `manifest.json`
 3. Follow [Method 1](#method-1-manual-installation-recommended-for-users) below
 
@@ -34,6 +34,7 @@ cd obsidian-mcp-bridge
 ### Optional but Recommended
 
 - **MCP Servers** - To connect to external data sources
+- **Omnisearch Plugin** - For enhanced vault search capabilities with OCR and semantic search
 - **Terminal/Command Line** - For running build commands
 
 ## 🚀 Installation Methods
@@ -44,9 +45,9 @@ This is the most straightforward method for end users.
 
 #### Step 1: Get the Plugin Files
 
-#### Option A: Download Beta Release (Easiest)
+#### Option A: Download Latest Release (Easiest)
 
-1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.1.1-beta)
+1. Go to [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.2.0)
 2. Download `main.js` and `manifest.json`
 
 #### Option B: Build from Source
@@ -231,12 +232,20 @@ npm install -g @modelcontextprotocol/server-postgres
    - Click the message-circle icon in the ribbon
    - Or use Command Palette: "MCP Bridge: Open Chat"
 
-2. **Try a Natural Language Query:**
+2. **Try Natural Language Queries:**
 
+   **Vault Search:**
    ``` txt
    "find my notes about productivity"
-   "search for recent files"
+   "search my vault for TypeScript"
    "what have I written about AI?"
+   ```
+
+   **Note Connections:**
+   ``` txt
+   "connect notes on artificial intelligence"
+   "connect ideas about project management"
+   "show connections between my React notes"
    ```
 
 3. **Use the Knowledge Discovery Hotkey:**

@@ -1,6 +1,6 @@
-# Development Roadmap - v0.1.1-beta Released! 🚀
+# Development Roadmap - v0.2.0 Released! 🕸️
 
-## ✅ Foundation Complete (Public Beta v0.1.1)
+## ✅ Note Connection Analysis Complete (v0.2.0)
 
 ### Core Infrastructure
 
@@ -14,33 +14,37 @@
 ### Knowledge Discovery
 
 - **Multi-Server Search**: Query multiple MCP servers simultaneously ✅
-- **Vault Integration**: AI-powered search of Obsidian notes ✅
+- **Enhanced Vault Search**: Native and plugin-enhanced search with Omnisearch integration ✅
+- **Note Connection Analysis**: Multi-type relationship discovery (links, tags, content, concepts) ✅
+- **Network Visualization**: Hub identification, cluster analysis, and connection suggestions ✅
 - **Natural Language**: Chat interface with intelligent routing ✅
 - **Server Discovery**: Automatic cataloging of server capabilities ✅
 
-## 🚧 Beta Limitations & Next Steps
+## 🚧 Current Development Focus
 
-### High Priority (v0.2.0)
+### High Priority (v0.3.0)
 
-- [ ] **Beta Feedback Integration** - Address user reports and community feedback
-- [ ] **Test Suite Improvements** - Fix timeout issues in mock scenarios
-- [ ] **Performance Optimization** - Reduce server discovery time, improve error handling
-- [ ] **Enhanced UI/UX** - Better user experience for server configuration and routing results
+- [ ] **Visual Graph Representation** - Interactive knowledge graph visualization
+- [ ] **Advanced Clustering Algorithms** - Machine learning-based topic detection
+- [ ] **Enhanced MCP Server Ecosystem** - Broader protocol support and integrations
+- [ ] **Performance Optimization** - Faster analysis for large vaults (>1000 notes)
 
-### Medium Priority
+### Medium Priority (v0.3.0)
 
-- [ ] **Advanced Link Discovery** - Automatic connection finding between notes and external content
+- [ ] **Test Suite Improvements** - Fix timeout issues in MCP client mock scenarios
 - [ ] **Integration Testing** - End-to-end testing with real MCP servers  
 - [ ] **Smart Content Insertion** - Context-aware suggestions while writing
+- [ ] **UI/UX Enhancements** - Better visualization of connection results
 
 ## 🔮 Future Features
 
-### Advanced Discovery
+### Advanced Discovery (v0.4.0+)
 
-- [ ] **Knowledge Graph** - Visual representation of content relationships
-- [ ] **Semantic Search** - Vector-based similarity search
+- [ ] **Interactive Knowledge Graph** - 3D visual representation with navigation
+- [ ] **Semantic Search** - Vector-based similarity search with embeddings
 - [ ] **Multi-Step Reasoning** - Complex query handling across servers
 - [ ] **Content Templates** - Automated content generation patterns
+- [ ] **Connection Quality Scoring** - ML-based relationship strength assessment
 
 ### User Experience
 
@@ -57,23 +61,23 @@
 
 ## 🎯 Development Priorities
 
-### Immediate (v0.2.0 - Next 4-6 weeks)
+### Immediate (v0.3.0 - Next 4-6 weeks)
 
-1. **Beta Feedback Integration** - Address community reports and suggestions
-2. **Test Suite Stabilization** - Fix timeout issues and improve reliability
-3. **Performance Improvements** - Faster server discovery and better error messages
+1. **Visual Graph Representation** - Interactive knowledge graph with D3.js or similar
+2. **Performance Optimization** - Faster analysis for large vaults with caching
+3. **Advanced Clustering** - ML-based topic detection and grouping
 
-### Short-term (v0.3.0 - 2-3 months)
+### Short-term (v0.4.0 - 2-3 months)
 
-1. **Advanced UI/UX** - Enhanced settings interface and routing visualization
-2. **Integration Testing** - End-to-end testing with real MCP servers
-3. **Advanced Link Discovery** - Automatic connection finding between ideas
+1. **Semantic Search Integration** - Vector embeddings for content similarity
+2. **Enhanced User Experience** - Rich UI for connection visualization
+3. **Plugin SDK Development** - Community extension framework
 
 ### Long-term (v1.0.0 - 4-6 months)
 
-1. **Knowledge Graph** - Visual relationship mapping
-2. **Plugin SDK** - Community extension framework
-3. **Advanced AI** - Multi-step reasoning and automation
+1. **AI-Powered Insights** - Multi-step reasoning and content synthesis
+2. **Collaborative Features** - Shared knowledge networks and team workflows
+3. **Advanced Automation** - Smart content generation and workflow templates
 
 ## 📊 Status Summary
 
@@ -83,10 +87,12 @@
 | **MCP Protocol** | ✅ Complete | All transport types implemented |
 | **Server Loading** | ✅ Complete | Dynamic loading from config JSON |
 | **LLM Routing** | ✅ Complete | OpenAI/Anthropic/OpenAI-compatible support |
+| **Note Connections** | ✅ Complete | Multi-type relationship analysis with network mapping |
+| **Vault Search** | ✅ Complete | Enhanced search with Omnisearch integration |
 | **Error Handling** | ✅ Complete | Production-grade reliability |
 | **Documentation** | ✅ Complete | Comprehensive guides and references |
-| **Testing** | ⚠️ Beta | Core functionality tested, some timeout issues |
-| **Public Release** | ✅ Complete | v0.1.1-beta available on GitHub |
+| **Testing** | ✅ Good | 40+ tests, core functionality covered |
+| **Public Release** | ✅ Complete | v0.2.0 production release available |
 
 ## Technical Notes
 
@@ -105,5 +111,5 @@ See [CLAUDE.md](CLAUDE.md) for essential development commands and workflows.
 
 ---
 
-**Last Updated**: 2025-07-23  
-**Current Status**: Public Beta v0.1.1 Released - Gathering Community Feedback
+**Last Updated**: 2025-07-27  
+**Current Status**: Production v0.2.0 Released - Note Connection Analysis System Complete

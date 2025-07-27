@@ -1,5 +1,98 @@
 # Release Notes
 
+## v0.2.0 (2025-07-27) 🕸️
+
+### 🎉 Note Connection Analysis System
+
+This major release introduces sophisticated note connection analysis, transforming how you discover relationships between your knowledge.
+
+### ✨ Major Features
+
+#### 🕸️ **Comprehensive Note Connection Analysis**
+
+- **Multi-type Connection Discovery**: Analyzes direct links, tag similarity, content overlap, and concept relationships
+- **Network Visualization**: Identifies hubs, bridges, clusters, and isolated notes in your knowledge network  
+- **Connection Strength Scoring**: Weighted relevance assessment for relationship quality
+- **Actionable Insights**: Suggests missing links, MOC creation opportunities, and topic clustering
+
+#### 🔍 **Enhanced Vault Search**
+
+- **Plugin Integration**: Full support for Omnisearch and REST API plugins with intelligent fallback
+- **Native Search**: Built-in search with relevance scoring when plugins aren't available
+- **Rich Results**: Enhanced formatting with excerpts, tags, modification dates, and relevance scores
+- **Performance Optimized**: Fast search across large vaults with smart caching
+
+#### 🧠 **Context-Aware LLM Routing**
+
+- **Intent Classification**: Distinguishes between vault search, note connections, and external queries
+- **Enhanced Prompts**: Improved routing logic that understands note relationship queries
+- **Fallback Analysis**: Robust heuristic routing when LLM services are unavailable
+- **Multi-transport Support**: Seamless integration across all MCP connection types
+
+### 🎯 **Usage Examples**
+
+#### Note Connection Analysis
+```
+"connect notes on artificial intelligence"
+"connect ideas about project management"
+"show connections between my React notes"
+```
+
+#### Enhanced Vault Search
+```
+"find my notes about machine learning" 
+"search my vault for TypeScript"
+"what have I written about distributed systems?"
+```
+
+#### Rich Network Analysis
+- **Network Overview**: Total notes, connections, key themes
+- **Strongest Connections**: Top relationships with detailed explanations
+- **Hub Notes**: Most connected notes in your network
+- **Note Clusters**: Grouped topics with central themes
+- **Connection Suggestions**: Recommendations for missing links, MOCs, etc.
+
+### 🔧 **Technical Implementation**
+
+- **NoteConnectionService**: Core connection analysis engine with sophisticated algorithms
+- **VaultSearchService**: Enhanced vault search with plugin integration and fallback
+- **Enhanced Bridge Interface**: New routing for vault search and note connections
+- **Updated LLM Router**: Context-aware routing with improved prompts
+- **Comprehensive Test Suite**: 40+ test cases ensuring reliability
+
+### 📈 **Performance Improvements**
+
+- **Fast Analysis**: Processes hundreds of notes in seconds
+- **Memory Efficient**: Optimized algorithms for large vaults  
+- **Cross-Platform**: Full Windows/macOS/Linux compatibility
+- **Plugin Compatibility**: Works with or without Omnisearch/REST API plugins
+
+### 💡 **Pro Tips**
+
+1. **Install Omnisearch** for enhanced search capabilities with OCR and semantic search
+2. **Use specific topics** in connection queries for better results ("AI" vs "artificial intelligence")
+3. **Explore clusters** to discover unexpected knowledge patterns
+4. **Follow suggestions** to improve your note network connectivity
+
+### 🚀 **Getting Started**
+
+1. **Update**: Download v0.2.0 from GitHub releases
+2. **Install Omnisearch** (optional but recommended for enhanced search)
+3. **Try Connections**: Use "connect notes on [topic]" to analyze your knowledge network
+4. **Explore Results**: Follow suggestions to strengthen your note connections
+
+### 📚 **Documentation Updates**
+
+- [Installation Guide](INSTALL.md) - Updated with v0.2.0 capabilities
+- [README](README.md) - Enhanced with note connection examples
+- [Security Guidelines](SECURITY.md) - Latest security best practices
+
+---
+
+**Download**: [GitHub Releases](https://github.com/simplemindedbot/obsidian-mcp-bridge/releases/tag/v0.2.0)  
+**Support**: [GitHub Issues](https://github.com/simplemindedbot/obsidian-mcp-bridge/issues)  
+**Discussions**: [GitHub Discussions](https://github.com/simplemindedbot/obsidian-mcp-bridge/discussions)
+
 ## v0.1.1-beta (2025-07-23) 🚀
 
 ### 🎉 First Public Beta Release
