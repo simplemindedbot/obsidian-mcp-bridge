@@ -11,6 +11,7 @@ export class ChatView extends ItemView {
   private chatInput!: HTMLInputElement;
   private sendButton!: HTMLButtonElement;
   private messages: ChatMessage[] = [];
+  private contextMode: "none" | "currentNote" | "selection" = "none";
 
   constructor(leaf: WorkspaceLeaf, bridgeInterface: BridgeInterface) {
     super(leaf);
@@ -37,6 +38,50 @@ export class ChatView extends ItemView {
     // Create chat header
     const header = container.createEl("div", { cls: "mcp-bridge-chat-header" });
     header.createEl("h3", { text: "MCP Bridge Chat" });
+
+    // Create context controls
+    const contextControls = container.createEl("div", { cls: "mcp-bridge-context-controls" });
+    
+    // Context status display
+    const contextStatus = contextControls.createEl("div", { cls: "mcp-bridge-context-status" });
+    this.updateContextStatus(contextStatus);
+    
+    // Context action buttons
+    const contextActions = contextControls.createEl("div", { cls: "mcp-bridge-context-actions" });
+    
+    const useCurrentNoteBtn = contextActions.createEl("button", {
+      text: "📄 Use Current Note",
+      cls: "mcp-bridge-context-btn",
+      title: "Include current note as context for queries"
+    });
+    
+    const useSelectionBtn = contextActions.createEl("button", {
+      text: "✂️ Use Selection",
+      cls: "mcp-bridge-context-btn",
+      title: "Include selected text as context for queries"
+    });
+    
+    const clearContextBtn = contextActions.createEl("button", {
+      text: "🗑️ Clear Context",
+      cls: "mcp-bridge-context-btn mcp-bridge-context-btn-secondary",
+      title: "Clear all context"
+    });
+
+    // Add event listeners for context buttons
+    useCurrentNoteBtn.addEventListener("click", () => {
+      this.setContextMode("currentNote");
+      this.updateContextStatus(contextStatus);
+    });
+
+    useSelectionBtn.addEventListener("click", () => {
+      this.setContextMode("selection");
+      this.updateContextStatus(contextStatus);
+    });
+
+    clearContextBtn.addEventListener("click", () => {
+      this.setContextMode("none");
+      this.updateContextStatus(contextStatus);
+    });
 
     // Create chat container
     this.chatContainer = container.createEl("div", {
@@ -76,7 +121,7 @@ export class ChatView extends ItemView {
       id: "welcome",
       role: "assistant",
       content:
-        'Hello! I\'m your MCP Bridge assistant. I can help you search your vault, discover related content, and answer questions using connected MCP servers.\n\nTry asking:\n- "Find my notes about machine learning"\n- "What have I written about this topic?"\n- "Discover related content about distributed systems"',
+        'Hello! I\'m your MCP Bridge assistant. I can help you search your vault, discover related content, and answer questions using connected MCP servers.\n\n🔍 **Vault Search Examples:**\n- "Find my notes about machine learning"\n- "Search my vault for TypeScript"\n- "What have I written about distributed systems?"\n\n🕸️ **Note Connection Analysis:**\n- "Connect notes on artificial intelligence"\n- "Connect ideas about project management"\n- "Show connections between my React notes"\n\n🧠 **Knowledge Discovery:**\n- "Discover related content about this topic"\n- "Find patterns in my knowledge base"\n\n💡 **Tip:** Install the Omnisearch plugin for enhanced search with OCR and semantic capabilities!',
       timestamp: new Date(),
     });
   }
@@ -175,5 +220,56 @@ export class ChatView extends ItemView {
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/`(.*?)`/g, "<code>$1</code>")
       .replace(/\n/g, "<br>");
+  }
+
+  private setContextMode(mode: "none" | "currentNote" | "selection"): void {
+    this.contextMode = mode;
+  }
+
+  private updateContextStatus(statusEl: HTMLElement): void {
+    statusEl.empty();
+    
+    const statusIcon = statusEl.createEl("span", { cls: "mcp-bridge-context-icon" });
+    const statusText = statusEl.createEl("span", { cls: "mcp-bridge-context-text" });
+    
+    switch (this.contextMode) {
+      case "currentNote": {
+        const noteContext = this.bridgeInterface.getCurrentNoteContext();
+        if (noteContext) {
+          statusIcon.textContent = "📄";
+          statusText.textContent = `Using current note: ${noteContext.title}`;
+          statusEl.addClass("mcp-bridge-context-active");
+        } else {
+          statusIcon.textContent = "❌";
+          statusText.textContent = "No active note found";
+          statusEl.addClass("mcp-bridge-context-error");
+        }
+        break;
+      }
+        
+      case "selection": {
+        const selectedText = this.bridgeInterface.getSelectedText();
+        if (selectedText) {
+          statusIcon.textContent = "✂️";
+          const preview = selectedText.length > 50 
+            ? selectedText.substring(0, 50) + "..." 
+            : selectedText;
+          statusText.textContent = `Using selection: "${preview}"`;
+          statusEl.addClass("mcp-bridge-context-active");
+        } else {
+          statusIcon.textContent = "❌";
+          statusText.textContent = "No text selected";
+          statusEl.addClass("mcp-bridge-context-error");
+        }
+        break;
+      }
+        
+      case "none":
+      default:
+        statusIcon.textContent = "🔄";
+        statusText.textContent = "Auto-detecting context";
+        statusEl.addClass("mcp-bridge-context-auto");
+        break;
+    }
   }
 }
