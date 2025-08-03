@@ -150,8 +150,10 @@ export class NoteConnectionService {
     
     if (this.fileContentCache.size > 100) {
       const firstKey = this.fileContentCache.keys().next().value;
-      this.fileContentCache.delete(firstKey);
-      this.logger.debug('NoteConnectionService', `Cache evicted entry: ${firstKey}`);
+      if (firstKey) {
+        this.fileContentCache.delete(firstKey);
+        this.logger.debug('NoteConnectionService', `Cache evicted entry: ${firstKey}`);
+      }
     }
     
     return content;
