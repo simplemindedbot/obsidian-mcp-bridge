@@ -110,12 +110,60 @@ export interface ConnectionSuggestion {
  */
 export class NoteConnectionService {
   private app: App;
-  private logger = getLogger();
+  private logger: any;
   private metadataCache: MetadataCache;
+  private fileContentCache: Map<string, { content: string; mtime: number }> = new Map();
 
   constructor(app: App) {
     this.app = app;
     this.metadataCache = app.metadataCache;
+    try {
+      this.logger = getLogger();
+    } catch (error) {
+      this.logger = {
+        info: () => {},
+        debug: () => {},
+        warn: () => {},
+        error: () => {}
+      };
+    }
+  }
+
+  /**
+   * Get file content from cache or read from disk
+   */
+  private async getCachedFileContent(file: TFile): Promise<string> {
+    const cacheKey = file.path;
+    const cached = this.fileContentCache.get(cacheKey);
+    
+    if (cached && cached.mtime === file.stat.mtime) {
+      this.logger.debug('NoteConnectionService', `Cache hit for ${file.path}`);
+      return cached.content;
+    }
+    
+    this.logger.debug('NoteConnectionService', `Cache miss for ${file.path}, reading from disk`);
+    const content = await this.app.vault.read(file);
+    this.fileContentCache.set(cacheKey, {
+      content,
+      mtime: file.stat.mtime
+    });
+    
+    if (this.fileContentCache.size > 100) {
+      const firstKey = this.fileContentCache.keys().next().value;
+      if (firstKey) {
+        this.fileContentCache.delete(firstKey);
+        this.logger.debug('NoteConnectionService', `Cache evicted entry: ${firstKey}`);
+      }
+    }
+    
+    return content;
+  }
+
+  /**
+   * Clear cache entry for a specific file
+   */
+  private clearCacheEntry(filePath: string): void {
+    this.fileContentCache.delete(filePath);
   }
 
   /**
@@ -124,6 +172,8 @@ export class NoteConnectionService {
   async connectNotesOnTopic(topic: string): Promise<NoteNetwork> {
     this.logger.info('NoteConnectionService', `Connecting notes on topic: "${topic}"`);
     const startTime = Date.now();
+    let cacheHits = 0;
+    let cacheMisses = 0;
 
     try {
       // 1. Find all notes related to the topic
@@ -144,7 +194,9 @@ export class NoteConnectionService {
       const summary = this.generateNetworkSummary(nodes, connections, clusters);
 
       const processingTime = Date.now() - startTime;
-      this.logger.info('NoteConnectionService', `Built note network in ${processingTime}ms`);
+      const cacheEfficiency = this.fileContentCache.size > 0 ? 
+        `Cache: ${this.fileContentCache.size} entries` : 'No cache data';
+      this.logger.info('NoteConnectionService', `Built note network in ${processingTime}ms. ${cacheEfficiency}`);
 
       return {
         centerTopic: topic,
@@ -169,7 +221,7 @@ export class NoteConnectionService {
 
     for (const file of files) {
       try {
-        const content = await this.app.vault.read(file);
+        const content = await this.getCachedFileContent(file);
         const relevance = this.calculateTopicRelevance(content, file, topicWords);
         
         if (relevance > 0.2) { // Threshold for topic relevance
@@ -269,8 +321,8 @@ export class NoteConnectionService {
     const connections: NoteConnection[] = [];
 
     try {
-      const contentA = await this.app.vault.read(noteA);
-      const contentB = await this.app.vault.read(noteB);
+      const contentA = await this.getCachedFileContent(noteA);
+      const contentB = await this.getCachedFileContent(noteB);
 
       // 1. Direct links
       const directLinks = this.findDirectLinks(noteA, noteB, contentA, contentB);
